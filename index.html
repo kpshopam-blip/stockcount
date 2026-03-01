@@ -569,7 +569,7 @@
     const API_URL = "https://script.google.com/macros/s/AKfycbz0omAxX7yj-PqeWMewIsScuTztHvLjWXqZPMPfm6HI-xil1vYRpVLJ9iZMijOu5Crn/exec";
 
     // แจ้งเตือนแอดมินให้เปลี่ยน URL (ถ้าเปลี่ยนแล้วข้อความตัวนี้จะหายไป)
-    if (API_URL !== "https://script.google.com/macros/s/AKfycbz0omAxX7yj-PqeWMewIsScuTztHvLjWXqZPMPfm6HI-xil1vYRpVLJ9iZMijOu5Crn/exec") {
+    if (API_URL !== "YOUR_WEB_APP_URL_HERE") {
       document.getElementById("setup-alert").style.display = "none";
     }
 
@@ -595,7 +595,7 @@
     // 🛜 ฟังก์ชัน Fetch API หลักสำหรับติดต่อกับ Code.gs
     // =========================================================
     async function callAppsScript(action, dataObj = {}) {
-      if (API_URL === "https://script.google.com/macros/s/AKfycbz0omAxX7yj-PqeWMewIsScuTztHvLjWXqZPMPfm6HI-xil1vYRpVLJ9iZMijOu5Crn/exec") {
+      if (API_URL === "YOUR_WEB_APP_URL_HERE") {
         throw new Error("ยังไม่ได้ตั้งค่า API_URL กรุณาใส่ URL ของ Web App ก่อน");
       }
 
