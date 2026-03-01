@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Kpshop - นับสต็อก (GitHub Version)</title>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+
+  <!-- QuaggaJS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+
+  <!-- CSS.html -> Style รวมไว้ที่นี่ -->
+  <style>
+    /* --- นำเข้าฟอนต์ Prompt --- */
+    @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap');
+
+    :root {
+      --primary-dark: #0f172a;
+      --primary-main: #1e293b;
+      --accent-green: #10b981;
+      --accent-blue: #3b82f6;
+      --accent-orange: #f97316;
+      --accent-purple: #a855f7;
+      --bg-gray: #f8fafc;
+      --text-main: #334155;
+    }
+
+    body {
+      font-family: 'Prompt', sans-serif;
+      background-color: var(--bg-gray);
+      color: var(--text-main);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* --- หน้า Login --- */
+    .login-page-bg {
+      background-color: var(--primary-dark);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      color: white;
+    }
+
+    .login-logo {
+      color: #10b981;
+      font-size: 4rem;
+      margin-bottom: 1rem;
+    }
+
+    .login-input {
+      background-color: rgba(255, 255, 255, 0.1) !important;
+      border: 1px solid rgba(255, 255, 255, 0.2) !important;
+      color: white !important;
+      text-align: center;
+      font-size: 1.5rem;
+      letter-spacing: 0.5rem;
+      border-radius: 15px;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+
+    .login-input::placeholder {
+      color: rgba(255, 255, 255, 0.4);
+      letter-spacing: normal;
+      font-size: 1rem;
+    }
+
+    .btn-login {
+      background-color: var(--accent-green);
+      border: none;
+      border-radius: 15px;
+      padding: 15px;
+      font-size: 1.1rem;
+      font-weight: 500;
+      width: 100%;
+      color: white;
+      box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3);
+      transition: transform 0.2s;
+    }
+
+    .btn-login:active {
+      transform: scale(0.98);
+    }
+
+    /* --- Header --- */
+    .app-header {
+      background-color: var(--primary-dark);
+      color: white;
+      padding: 15px 20px;
+      border-bottom-left-radius: 20px;
+      border-bottom-right-radius: 20px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+    }
+
+    /* --- Menu Cards --- */
+    .menu-card {
+      background: white;
+      border-radius: 20px;
+      padding: 20px;
+      margin-bottom: 15px;
+      border: none;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+      display: flex;
+      align-items: center;
+      transition: transform 0.2s;
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .menu-card:active {
+      transform: scale(0.98);
+      background-color: #f1f5f9;
+    }
+
+    .icon-circle {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 15px;
+      font-size: 1.8rem;
+      flex-shrink: 0;
+    }
+
+    .icon-bg-blue {
+      background-color: #e0f2fe;
+      color: var(--accent-blue);
+    }
+
+    .icon-bg-orange {
+      background-color: #ffedd5;
+      color: var(--accent-orange);
+    }
+
+    .icon-bg-purple {
+      background-color: #f3e8ff;
+      color: var(--accent-purple);
+    }
+
+    /* --- List Items --- */
+    .list-group-item {
+      border: none;
+      border-bottom: 1px solid #f1f5f9;
+      padding: 15px 20px;
+    }
+
+    .list-group-item:first-child {
+      border-top-left-radius: 15px;
+      border-top-right-radius: 15px;
+    }
+
+    .list-group-item:last-child {
+      border-bottom-right-radius: 15px;
+      border-bottom-left-radius: 15px;
+      border-bottom: none;
+    }
+
+    /* --- Scanner UI --- */
+    #scanner-ui-overlay {
+      background-color: black;
+    }
+
+    #scanner-container video {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover !important;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    #scanner-container canvas.drawingBuffer {
+      display: none !important;
+    }
+
+    .scanner-laser {
+      background-color: var(--accent-orange);
+      box-shadow: 0 0 10px var(--accent-orange);
+      position: absolute;
+      top: 50%;
+      left: 10%;
+      width: 80%;
+      height: 2px;
+      z-index: 10;
+    }
+
+    #switch-camera-btn {
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(5px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: white;
+    }
+
+    /* --- อื่นๆ --- */
+    .card {
+      border-radius: 15px;
+      border: none;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .btn {
+      border-radius: 10px;
+    }
+
+    .form-control {
+      border-radius: 10px;
+      padding: 10px 15px;
+      border-color: #e2e8f0;
+    }
+
+    .form-control:focus {
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+    }
+
+    .badge {
+      border-radius: 8px;
+      font-weight: 500;
+    }
+
+    .save-status-toast {
+      position: absolute;
+      top: -50px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      font-weight: bold;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      display: none;
+      z-index: 100;
+    }
+
+    .save-status-toast.success {
+      background-color: var(--accent-green);
+      color: white;
+    }
+
+    .save-status-toast.error {
+      background-color: #ef4444;
+      color: white;
+    }
+  </style>
+
+</head>
+
+<body>
+
+  <!-- ==================== PAGE: LOGIN ==================== -->
+  <div id="page-login" class="page-container">
+    <div class="login-page-bg px-4">
+      <div class="text-center">
+        <!-- โลโก้ -->
+        <div class="login-logo">
+          <i class="bi bi-box-seam-fill"></i>
+        </div>
+
+        <h2 class="fw-bold mb-0">StockCount</h2>
+        <p class="text-white-50 mb-5">ระบบนับสต็อกสินค้า</p>
+
+        <!-- แจ้งเตือนเรื่องการตั้งค่า API_URL บน GitHub -->
+        <div id="setup-alert" class="alert alert-warning py-2 rounded-3 text-start mb-3" style="font-size: 0.85rem;">
+          <i class="bi bi-info-circle-fill me-1"></i> <strong>สำหรับ Admin!</strong><br>
+          หากเพิ่งอัพโหลดลง GitHub ให้เปิดไฟล์ <code>index.html</code> แล้วนำ <b>URL Web App (doPost)</b> มาใส่ที่ตัวแปร
+          <b>API_URL</b> ในบรรทัดล่างสุดของไฟล์
+        </div>
+
+        <form id="login-form">
+          <div class="mb-3 text-start">
+            <label for="pin-input" class="form-label text-white-50 ms-1">รหัสพนักงาน (PIN)</label>
+            <input type="password" id="pin-input" class="form-control login-input" placeholder="• • • •" maxlength="6"
+              required autocomplete="off">
+          </div>
+
+          <div id="login-error" class="alert alert-danger py-2 rounded-3 mb-3"
+            style="display: none; background: rgba(220, 53, 69, 0.2); border: 1px solid rgba(220, 53, 69, 0.5); color: #ff8787;">
+            <small><i class="bi bi-exclamation-circle me-1"></i> <span id="login-error-text">รหัส PIN
+                ไม่ถูกต้อง</span></small>
+          </div>
+
+          <button type="submit" id="login-button" class="btn-login">
+            เข้าสู่ระบบ
+          </button>
+
+          <div id="login-spinner" class="mt-3" style="display: none;">
+            <div class="spinner-border text-success" role="status"></div>
+            <div class="text-white-50 mt-1" style="font-size:0.8rem">กำลังตรวจสอบข้อมูลผ่าน API...</div>
+          </div>
+        </form>
+      </div>
+
+      <div class="text-center mt-5 text-white-50" style="font-size: 0.8rem;">
+        <p>Version 3.0 (GitHub API)</p>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ==================== PAGE: MENU ==================== -->
+  <div id="page-menu" class="page-container" style="display: none">
+    <div class="app-header">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h4 class="mb-0 fw-bold">นับสต็อก</h4>
+          <small class="text-white-50">
+            <i class="bi bi-geo-alt-fill me-1"></i>สาขา <span id="user-branch">...</span>
+          </small>
+        </div>
+        <div class="text-end">
+          <div class="fw-bold" id="user-name">User</div>
+          <div class="badge bg-white text-dark" id="user-role">Role</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="container-fluid px-3">
+      <!-- เริ่มนับสต็อก -->
+      <div class="menu-card" onclick="showPage('page-stock-count')">
+        <div class="icon-circle icon-bg-blue"><i class="bi bi-upc-scan"></i></div>
+        <div>
+          <h5 class="fw-bold mb-1">เริ่มนับสต็อก</h5>
+          <small class="text-muted">สแกนและบันทึกจำนวนสินค้า</small>
+        </div>
+        <div class="ms-auto text-muted"><i class="bi bi-chevron-right"></i></div>
+      </div>
+
+      <!-- สรุปรายการที่นับ -->
+      <div class="menu-card" onclick="showPage('page-summary')">
+        <div class="icon-circle icon-bg-orange"><i class="bi bi-list-check"></i></div>
+        <div>
+          <h5 class="fw-bold mb-1">สรุปรายการที่นับ</h5>
+          <small class="text-muted">ตรวจสอบรายการของวันนี้</small>
+        </div>
+        <div class="ms-auto text-muted"><i class="bi bi-chevron-right"></i></div>
+      </div>
+
+      <!-- สรุปยอดสาขา (Manager) -->
+      <div id="manager-menu-button" style="display: none;">
+        <div class="menu-card" onclick="showPage('page-manager-summary')">
+          <div class="icon-circle icon-bg-purple"><i class="bi bi-pie-chart-fill"></i></div>
+          <div>
+            <h5 class="fw-bold mb-1">สรุปยอดสาขา</h5>
+            <small class="text-muted">ตรวจสอบยอด ขาด/เกิน</small>
+          </div>
+          <div class="ms-auto text-muted"><i class="bi bi-chevron-right"></i></div>
+        </div>
+      </div>
+
+      <div class="text-center mt-5">
+        <button class="btn btn-link text-muted text-decoration-none" onclick="logout()">
+          <i class="bi bi-box-arrow-left me-1"></i> ออกจากระบบ
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ==================== PAGE: STOCK COUNT ==================== -->
+  <div id="page-stock-count" class="page-container" style="display: none">
+    <div class="app-header sticky-top d-flex align-items-center">
+      <button class="btn btn-link text-white p-0 me-3" onclick="goBackToMenu()"><i
+          class="bi bi-chevron-left fs-2"></i></button>
+      <div>
+        <h5 class="mb-0 fw-bold">นับสต็อก</h5>
+        <small class="text-white-50" id="branch-name-display">กำลังโหลด...</small>
+      </div>
+    </div>
+
+    <div class="container-fluid px-3 pb-5 mb-5">
+      <!-- Recent Count -->
+      <div id="recent-count-container-wrapper" class="mb-3 shadow-sm border-0"
+        style="display: none; border-radius: 15px; overflow: hidden;">
+        <div class="bg-warning bg-opacity-10 px-3 py-2 text-warning fw-bold"><i class="bi bi-clock-history me-1"></i>
+          ล่าสุด</div>
+        <div id="recent-count-container" class="bg-white"></div>
+      </div>
+
+      <!-- Search -->
+      <div id="search-master-list" class="mb-3" style="display: none;">
+        <div class="input-group shadow-sm" style="border-radius: 15px; overflow: hidden;">
+          <span class="input-group-text bg-white border-0 ps-3"><i class="bi bi-search text-muted"></i></span>
+          <input type="text" id="search-input-field" class="form-control border-0 py-3"
+            placeholder="ค้นหาชื่อ หรือ บาร์โค้ด..." style="box-shadow: none;">
+        </div>
+      </div>
+
+      <!-- Master List -->
+      <div id="stock-list-spinner" class="text-center mt-5">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="mt-2 text-muted">กำลังโหลดรายการจาก API...</p>
+      </div>
+
+      <ul id="stock-list-container" class="list-group shadow-sm" style="display: none; border-radius: 15px;"></ul>
+    </div>
+
+    <!-- Bottom Action Bar -->
+    <div class="bottom-action-bar fixed-bottom bg-white p-3 border-top shadow-lg"
+      style="border-top-left-radius: 20px; border-top-right-radius: 20px;">
+
+      <!-- ปุ่มสแกน -->
+      <div id="start-scan-btn-container" class="d-grid">
+        <button type="button" class="btn btn-primary btn-lg py-3 rounded-pill fw-bold shadow-sm" id="start-scan-btn"
+          onclick="startScanner()">
+          <i class="bi bi-upc-scan me-2"></i> เริ่มสแกน
+        </button>
+      </div>
+
+      <!-- การ์ดบันทึกผล -->
+      <div id="scan-result-card" style="display: none;">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div>
+            <h6 class="mb-0 fw-bold text-primary" id="result-name">...</h6>
+            <small class="text-muted" id="result-barcode">...</small>
+          </div>
+          <button class="btn btn-close bg-light" onclick="resetScanPage()"></button>
+        </div>
+        <div class="input-group mb-2">
+          <input type="number" id="quantity-input"
+            class="form-control form-control-lg text-center fw-bold bg-light border-0" placeholder="0"
+            inputmode="numeric" style="border-radius: 10px;">
+        </div>
+        <div class="d-grid">
+          <button class="btn btn-success btn-lg py-2 rounded-pill fw-bold" id="save-count-btn">
+            <i class="bi bi-check-lg me-1"></i> บันทึก
+          </button>
+        </div>
+      </div>
+
+      <div id="item-not-found-alert" class="alert alert-danger mb-0 text-center rounded-3 mt-2" style="display: none;">
+        <strong>ไม่พบสินค้านี้</strong> ในรายการของสาขาคุณ
+      </div>
+      <div id="save-status-toast" class="save-status-toast"></div>
+    </div>
+  </div>
+
+
+  <!-- ==================== PAGE: SUMMARY ==================== -->
+  <div id="page-summary" class="page-container" style="display: none">
+    <div class="container p-3 pb-5">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <button class="btn btn-sm btn-outline-secondary" onclick="showPage('page-menu')">&lt; กลับเมนู</button>
+        <h2 class="mb-0 text-success">สรุปผล (สาขา)</h2>
+        <div style="width: 60px"></div>
+      </div>
+
+      <div class="btn-group w-100 mb-3" role="group">
+        <input type="radio" class="btn-check" name="filter-options" id="filter-all" autocomplete="off" checked
+          onclick="filterSummaryReport('all')">
+        <label class="btn btn-outline-secondary" for="filter-all" id="filter-all-label">ทั้งหมด (0)</label>
+        <input type="radio" class="btn-check" name="filter-options" id="filter-short" autocomplete="off"
+          onclick="filterSummaryReport('short')">
+        <label class="btn btn-outline-danger" for="filter-short" id="filter-short-label">ขาด (0)</label>
+        <input type="radio" class="btn-check" name="filter-options" id="filter-over" autocomplete="off"
+          onclick="filterSummaryReport('over')">
+        <label class="btn btn-outline-warning" for="filter-over" id="filter-over-label">เกิน (0)</label>
+        <input type="radio" class="btn-check" name="filter-options" id="filter-ok" autocomplete="off"
+          onclick="filterSummaryReport('ok')">
+        <label class="btn btn-outline-success" for="filter-ok" id="filter-ok-label">ตรง (0)</label>
+      </div>
+
+      <div id="summary-report-spinner" class="text-center" style="display: none">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p>กำลังประมวลผลรายงานจาก API...</p>
+      </div>
+      <div id="summary-report-list"></div>
+    </div>
+  </div>
+
+
+  <!-- ==================== PAGE: MANAGER SUMMARY ==================== -->
+  <div id="page-manager-summary" class="page-container" style="display: none">
+    <div class="container-fluid pt-3">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <button class="btn btn-sm btn-outline-secondary" onclick="showPage('page-menu')"><i
+            class="bi bi-chevron-left"></i> กลับเมนู</button>
+        <h5 class="mb-0 text-danger">สรุปผล (ผู้จัดการ)</h5>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">เลือกสาขาเพื่อดูรายงาน:</label>
+        <div class="input-group">
+          <select class="form-select" id="manager-branch-selector" disabled>
+            <option selected>กำลังโหลด...</option>
+          </select>
+          <button class="btn btn-primary" type="button" id="manager-load-report-btn" onclick="handleManagerReportLoad()"
+            disabled><i class="bi bi-arrow-clockwise"></i> โหลด</button>
+          <button class="btn btn-success" type="button" id="manager-send-email-btn" disabled><i
+              class="bi bi-envelope"></i> ส่งอีเมล</button>
+        </div>
+      </div>
+
+      <div class="btn-group d-flex mb-2" role="group">
+        <input type="radio" class="btn-check" name="manager-filter-options" id="manager-filter-all" autocomplete="off"
+          checked onchange="filterManagerSummaryReport('all')">
+        <label class="btn btn-outline-secondary" id="manager-filter-all-label" for="manager-filter-all">ทั้งหมด
+          (0)</label>
+        <input type="radio" class="btn-check" name="manager-filter-options" id="manager-filter-short" autocomplete="off"
+          onchange="filterManagerSummaryReport('short')">
+        <label class="btn btn-outline-danger" id="manager-filter-short-label" for="manager-filter-short">ขาด (0)</label>
+        <input type="radio" class="btn-check" name="manager-filter-options" id="manager-filter-over" autocomplete="off"
+          onchange="filterManagerSummaryReport('over')">
+        <label class="btn btn-outline-warning text-dark" id="manager-filter-over-label" for="manager-filter-over">เกิน
+          (0)</label>
+        <input type="radio" class="btn-check" name="manager-filter-options" id="manager-filter-ok" autocomplete="off"
+          onchange="filterManagerSummaryReport('ok')">
+        <label class="btn btn-outline-success" id="manager-filter-ok-label" for="manager-filter-ok">ตรง (0)</label>
+      </div>
+
+      <div id="manager-summary-report-spinner" class="text-center mt-3" style="display: none;">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p>กำลังประมวลผลรายงานจาก API...</p>
+      </div>
+
+      <div id="manager-email-toast" style="display: none;"></div>
+      <div id="manager-report-list" class="pb-3"></div>
+    </div>
+  </div>
+
+
+  <!-- ==================== SCANNER OVERLAY ==================== -->
+  <div id="scanner-ui-overlay" class="vw-100 vh-100"
+    style="display: none; position: fixed; top: 0; left: 0; z-index: 1050; background-color: #000;">
+    <!-- (1) ส่วนแสดงผลกล้อง: เอาแค่ครึ่งบน (ความสูง 50vh) -->
+    <div style="position: relative; width: 100%; height: 50vh; overflow: hidden;">
+      <div id="scanner-container" class="w-100 h-100"></div>
+      <div class="scanner-laser"></div>
+      <button id="switch-camera-btn" class="btn btn-sm rounded-pill shadow"
+        style="position: absolute; top: 15px; right: 15px; z-index: 30; display: none; font-size: 0.8rem;"
+        onclick="switchCamera()">
+        <i class="bi bi-arrow-repeat"></i> สลับกล้อง
+      </button>
+      <div
+        style="position: absolute; bottom: 10px; width: 100%; text-align: center; color: rgba(255,255,255,0.8); font-size: 0.8rem; z-index: 20;">
+        วางบาร์โค้ดให้ตรงเส้นแดง</div>
+    </div>
+
+    <!-- (2) ส่วนควบคุมด้านล่าง -->
+    <div class="d-flex flex-column justify-content-center align-items-center text-white"
+      style="height: 50vh; background-color: #0f172a;">
+      <div class="mb-4 text-center text-white-50"><i class="bi bi-camera-video fs-1"></i>
+        <p class="mt-2 mb-0">กำลังสแกน...</p>
+      </div>
+      <button type="button" class="btn btn-danger btn-lg rounded-pill px-5 py-3 shadow" onclick="stopScanner()">
+        <i class="bi bi-x-lg me-2"></i> ปิดกล้อง
+      </button>
+    </div>
+  </div>
+
+
+  <!-- ==================== SCRIPTS (แทนที่ JavaScript.html เดิม) ==================== -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    // =========================================================
+    // 🔧 ขั้นตอนที่ 1: ตั้งค่า URL ของ Web App (ตั้งค่าก่อนอัพขึ้น GitHub)
+    // =========================================================
+    // นำ URL ที่ได้จากการ Deploy Code.gs เป็น Web App (Anyone) มาวางที่นี่
+    // ต้องขึ้นต้นด้วย https://script.google.com/macros/s/....../exec
+    const API_URL = "https://script.google.com/macros/s/AKfycbz0omAxX7yj-PqeWMewIsScuTztHvLjWXqZPMPfm6HI-xil1vYRpVLJ9iZMijOu5Crn/exec";
+
+    // แจ้งเตือนแอดมินให้เปลี่ยน URL (ถ้าเปลี่ยนแล้วข้อความตัวนี้จะหายไป)
+    if (API_URL !== "https://script.google.com/macros/s/AKfycbz0omAxX7yj-PqeWMewIsScuTztHvLjWXqZPMPfm6HI-xil1vYRpVLJ9iZMijOu5Crn/exec") {
+      document.getElementById("setup-alert").style.display = "none";
+    }
+
+    // =========================================================
+    // ตัวแปร Global Framework
+    // =========================================================
+    let currentUser = null;
+    let currentSavedPin = null; // 🔑 ตัวนี้ใช้สำหรับส่งรหัสเก็บสิทธิ์ API ทุกครั้ง
+
+    let stockMasterList = [];
+    let currentScannedItem = null;
+    let fullSummaryReport = [];
+    let managerFullSummaryReport = [];
+    let recentCounts = [];
+
+    // สำหรับระบบกล้อง 
+    let allVideoDevices = [];
+    let currentDeviceIndex = 0;
+    let lastUsedDeviceId = null;
+
+
+    // =========================================================
+    // 🛜 ฟังก์ชัน Fetch API หลักสำหรับติดต่อกับ Code.gs
+    // =========================================================
+    async function callAppsScript(action, dataObj = {}) {
+      if (API_URL === "https://script.google.com/macros/s/AKfycbz0omAxX7yj-PqeWMewIsScuTztHvLjWXqZPMPfm6HI-xil1vYRpVLJ9iZMijOu5Crn/exec") {
+        throw new Error("ยังไม่ได้ตั้งค่า API_URL กรุณาใส่ URL ของ Web App ก่อน");
+      }
+
+      const payload = {
+        action: action,
+        pin: currentSavedPin, // 🔑 แนบ PIN ไปเป็นกุญแจทุกครั้ง
+        data: dataObj
+      };
+
+      try {
+        const response = await fetch(API_URL, {
+          method: "POST",
+          headers: {
+            // ป้องกันปัญหา CORS ในฝั่งส่ง
+            "Content-Type": "text/plain;charset=utf-8",
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          throw new Error("HTTP Error " + response.status);
+        }
+
+        // คำตอบที่ได้จาก ContentService.createTextOutput
+        const result = await response.json();
+
+        if (result.status === "error") {
+          // ถ้าคนนอกยิง หรือ PIN ผิด จะมาตรงนี้
+          if (result.message.includes("Access Denied")) {
+            logout(); // ดีดกลับหน้าล็อกอิน
+          }
+          throw new Error(result.message);
+        }
+
+        return result.data; // สำเร็จ คืนค่าไปให้ใช้ต่อ
+      } catch (error) {
+        console.error("API Call Failed:", error);
+        throw error;
+      }
+    }
+
+
+    // --- Audio ---
+    function playBeepSound() {
+      try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        gainNode.gain.value = 0.1;
+        oscillator.frequency.value = 900;
+        oscillator.type = "square";
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.1);
+      } catch (e) { console.error("Web Audio API error", e); }
+    }
+
+    // --- Navigation ---
+    function showPage(pageId) {
+      document.querySelectorAll(".page-container").forEach((page) => {
+        page.style.display = "none";
+      });
+      const pageToShow = document.getElementById(pageId);
+      if (pageToShow) pageToShow.style.display = "block";
+
+      if (pageId === 'page-stock-count' && currentUser) loadStockCountPage();
+      if (pageId === 'page-summary' && currentUser) loadSummaryReport();
+      if (pageId === 'page-manager-summary' && currentUser) loadManagerPage();
+    }
+
+
+    // =========================================================
+    // 🔐 ระบบ Authentication
+    // =========================================================
+    document.getElementById("login-form").addEventListener("submit", async function (e) {
+      e.preventDefault();
+      const pin = document.getElementById("pin-input").value;
+      const btn = document.getElementById("login-button");
+      const spinner = document.getElementById("login-spinner");
+      const errorBox = document.getElementById("login-error");
+
+      spinner.style.display = "block";
+      btn.disabled = true;
+      errorBox.style.display = "none";
+
+      try {
+        // โทรหา API (fetch)
+        const userObject = await callAppsScript("login", { pin: pin });
+
+        // ล็อกอินสำเร็จ
+        currentUser = userObject;
+        currentSavedPin = pin; // เก็บ PIN ไว้ใช้ในการทำงานครั้งต่อไป
+
+        document.getElementById("user-name").textContent = currentUser.name;
+        document.getElementById("user-role").textContent = currentUser.role;
+        document.getElementById("user-branch").textContent = currentUser.branch;
+        document.getElementById("manager-menu-button").style.display = (currentUser.role === 'Manager') ? "block" : "none";
+        showPage("page-menu");
+
+      } catch (err) {
+        // ล็อกอินล้มเหลว
+        document.getElementById("login-error-text").innerText = err.message;
+        errorBox.style.display = "block";
+      } finally {
+        spinner.style.display = "none";
+        btn.disabled = false;
+      }
+    });
+
+    function logout() {
+      currentUser = null;
+      currentSavedPin = null; // ล้างกุญแจ
+      document.getElementById("pin-input").value = "";
+      document.getElementById("login-error").style.display = "none";
+      showPage("page-login");
+    }
+
+
+    // =========================================================
+    // 📦 ระบบนับสต็อกหน้าบ้าน
+    // =========================================================
+    function goBackToMenu() {
+      stopScanner();
+      showPage('page-menu');
+      resetScanPage();
+    }
+
+    async function loadStockCountPage() {
+      document.getElementById("stock-list-spinner").style.display = "block";
+      document.getElementById("stock-list-container").style.display = "none";
+      const searchDiv = document.getElementById("search-master-list");
+      if (searchDiv) searchDiv.style.display = "none";
+      document.getElementById("branch-name-display").textContent = currentUser.branch;
+
+      stockMasterList = [];
+      resetScanPage();
+      recentCounts = [];
+      renderRecentCounts();
+
+      // ดึงข้อมูลผ่าน fetch()
+      try {
+        const list = await callAppsScript("getStockMasterList", {}); // ไม่ต้องส่งเบรานช์ เพราะ API จะใช้ตัวจาก PIN แทน
+        onStockListLoaded(list);
+      } catch (err) {
+        document.getElementById("stock-list-spinner").innerHTML = `<p class="text-danger">เริ่มระบบไม่ได้: ${err.message}</p>`;
+      }
+    }
+
+    function onStockListLoaded(list) {
+      stockMasterList = list;
+      document.getElementById("stock-list-spinner").style.display = "none";
+      document.getElementById("stock-list-container").style.display = "block";
+      const searchDiv = document.getElementById("search-master-list");
+      if (searchDiv) searchDiv.style.display = "block";
+
+      const searchInput = document.getElementById("search-input-field");
+      if (searchInput) {
+        searchInput.addEventListener("keyup", filterStockList);
+        searchInput.value = "";
+      }
+
+      renderStockList([]);
+
+      const container = document.getElementById("stock-list-container");
+      container.innerHTML = '<li class="list-group-item text-center text-muted py-5 border-0 bg-transparent"><i class="bi bi-search display-1 d-block mb-3 opacity-25"></i>พิมพ์ค้นหา หรือ กดปุ่มสแกนด้านล่าง</li>';
+    }
+
+    function renderStockList(list) {
+      const container = document.getElementById("stock-list-container");
+      container.innerHTML = "";
+      if (list.length === 0) return;
+
+      list.forEach(item => {
+        const li = document.createElement("li");
+        li.className = "list-group-item";
+        li.innerHTML = `
+          <strong>${item.name}</strong><br>
+          <small class="text-muted"><i class="bi bi-upc"></i> ${item.barcode} ${item.productCode ? `| <i class="bi bi-tag"></i> ${item.productCode}` : ''}</small>
+          <span class="badge bg-secondary float-end mt-2">${item.masterQuantity} ชิ้น</span>`;
+        li.onclick = () => selectItemFromList(item, 'tap');
+        container.appendChild(li);
+      });
+    }
+
+    function filterStockList() {
+      const query = document.getElementById("search-input-field").value.toLowerCase().trim();
+      const container = document.getElementById("stock-list-container");
+      if (query === "") { container.innerHTML = '<li class="list-group-item text-center text-muted py-5 border-0 bg-transparent"><i class="bi bi-search display-1 d-block mb-3 opacity-25"></i>พิมพ์ค้นหา หรือ กดปุ่มสแกนด้านล่าง</li>'; return; }
+      const filteredList = stockMasterList.filter(item => {
+        return (item.name && item.name.toLowerCase().includes(query)) || (item.barcode && item.barcode.toLowerCase().includes(query)) || (item.productCode && item.productCode.toLowerCase().includes(query));
+      });
+      if (filteredList.length === 0) {
+        container.innerHTML = '<li class="list-group-item text-center text-muted py-4 border-0">ไม่พบสินค้าในรายการสาขา</li>';
+      } else { renderStockList(filteredList); }
+    }
+
+
+    // --- ระบบกล้องอ่านบาร์โค้ด (ยังคงเหมือนเดิม QuaggaJS) ---
+    function _stopQuaggaOnly() {
+      try { Quagga.offDetected(onBarcodeDetected); Quagga.stop(); } catch (err) { console.warn(err); }
+    }
+
+    function startScanner(specificDeviceId = null) {
+      document.getElementById("scanner-ui-overlay").style.display = "block";
+      const constraints = { width: { min: 640, ideal: 1920 }, height: { min: 480, ideal: 1080 }, advanced: [{ focusMode: "continuous" }] };
+      let targetDeviceId = specificDeviceId;
+      if (!targetDeviceId && lastUsedDeviceId) targetDeviceId = lastUsedDeviceId;
+      if (targetDeviceId) constraints.deviceId = { exact: targetDeviceId }; else constraints.facingMode = "environment";
+
+      Quagga.init({
+        inputStream: { name: "Live", type: "LiveStream", target: document.querySelector('#scanner-container'), constraints: constraints, area: { top: "30%", right: "10%", left: "10%", bottom: "30%" } },
+        decoder: { readers: ["code_128_reader", "ean_reader", "upc_reader"] },
+        locate: true,
+      }, function (err) {
+        if (err) { showSaveToast('ไม่สามารถเปิดกล้องได้: ' + err.message, "error"); return; }
+        Quagga.start();
+
+        if (allVideoDevices.length === 0) {
+          navigator.mediaDevices.enumerateDevices().then(devices => {
+            const videoInputs = devices.filter(device => device.kind === 'videoinput');
+            const backCameras = videoInputs.filter(d => { const label = d.label.toLowerCase(); return label.includes('back') || label.includes('environment'); });
+            allVideoDevices = backCameras.length > 0 ? backCameras : videoInputs;
+            if (allVideoDevices.length > 1) document.getElementById("switch-camera-btn").style.display = "block";
+          });
+        }
+        setTimeout(() => {
+          const track = Quagga.CameraAccess.getActiveTrack();
+          if (track && typeof track.applyConstraints === 'function') track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(e => { });
+        }, 500);
+      });
+      Quagga.onDetected(onBarcodeDetected);
+    }
+
+    function switchCamera() {
+      if (allVideoDevices.length < 2) return;
+      _stopQuaggaOnly();
+      currentDeviceIndex = (currentDeviceIndex + 1) % allVideoDevices.length;
+      lastUsedDeviceId = allVideoDevices[currentDeviceIndex].deviceId;
+      startScanner(lastUsedDeviceId);
+    }
+
+    function stopScanner() {
+      _stopQuaggaOnly(); document.getElementById("scanner-ui-overlay").style.display = "none";
+    }
+
+    function onBarcodeDetected(result) {
+      playBeepSound(); stopScanner(); const code = result.codeResult.code;
+      const foundItem = stockMasterList.find(item => (item.barcode && item.barcode === code) || (item.productCode && item.productCode === code));
+      if (foundItem) { renderStockList([foundItem]); selectItemFromList(foundItem, 'scan'); } else {
+        currentScannedItem = null;
+        const alertBox = document.getElementById("item-not-found-alert");
+        alertBox.innerHTML = `<i class="bi bi-exclamation-triangle-fill"></i> ไม่พบสินค้านี้ในระบบ<br><div class="mt-2 p-2 bg-white rounded border border-danger text-danger"><small>รหัสที่อ่านได้:</small><br><strong class="fs-5">${code}</strong></div>`;
+        alertBox.style.display = "block";
+        document.getElementById("scan-result-card").style.display = "none";
+        document.getElementById("quantity-input").disabled = true;
+        document.getElementById("save-count-btn").disabled = true;
+      }
+    }
+
+    function selectItemFromList(item, source = 'tap') {
+      if (source === 'tap') playBeepSound();
+      currentScannedItem = item;
+      document.getElementById("result-barcode").textContent = item.barcode;
+      document.getElementById("result-name").textContent = item.name;
+      document.getElementById("scan-result-card").style.display = "block";
+      document.getElementById("item-not-found-alert").style.display = "none";
+
+      const qtyInput = document.getElementById("quantity-input");
+      qtyInput.disabled = false; qtyInput.value = ""; qtyInput.focus();
+      document.getElementById("save-count-btn").disabled = false;
+      document.getElementById("start-scan-btn-container").style.display = "none";
+    }
+
+    function resetScanPage() {
+      currentScannedItem = null;
+      document.getElementById("scan-result-card").style.display = "none";
+      document.getElementById("item-not-found-alert").style.display = "none";
+      const qtyInput = document.getElementById("quantity-input"); qtyInput.value = ""; qtyInput.disabled = true;
+      document.getElementById("save-count-btn").disabled = true;
+      document.getElementById("start-scan-btn-container").style.display = "block";
+      const searchInput = document.getElementById("search-input-field"); if (searchInput) searchInput.value = "";
+      document.getElementById("stock-list-container").innerHTML = '<li class="list-group-item text-center text-muted py-5 border-0 bg-transparent"><i class="bi bi-search display-1 d-block mb-3 opacity-25"></i>พิมพ์ค้นหา หรือ กดปุ่มสแกนด้านล่าง</li>';
+    }
+
+
+    // =========================================================
+    // 💾 บันทึกข้อมูล
+    // =========================================================
+    document.getElementById("save-count-btn").addEventListener("click", async function () {
+      const quantity = parseInt(document.getElementById("quantity-input").value);
+      if (!currentScannedItem) return;
+      if (isNaN(quantity) || quantity < 0) { showSaveToast("กรุณากรอกจำนวนให้ถูกต้อง", "error"); return; }
+
+      const saveBtn = document.getElementById("save-count-btn");
+      saveBtn.disabled = true; saveBtn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> กำลังบันทึกผ่าน API...`;
+      document.getElementById("start-scan-btn").disabled = true;
+
+      const dataToSave = {
+        barcode: currentScannedItem.barcode,
+        name: currentScannedItem.name,
+        quantity: quantity,
+      };
+
+      try {
+        // โทรหา API (fetch)
+        const message = await callAppsScript("logStockCount", dataToSave);
+
+        // สำเร็จ
+        saveBtn.disabled = false; saveBtn.innerHTML = "บันทึก";
+        document.getElementById("start-scan-btn").disabled = false;
+
+        showSaveToast("บันทึกข้อมูลแล้ว (" + message + ")", "success");
+
+        recentCounts.unshift({ name: currentScannedItem.name, quantity: quantity, barcode: currentScannedItem.barcode });
+        renderRecentCounts();
+        resetScanPage();
+
+      } catch (err) {
+        // ผิดพลาด
+        saveBtn.disabled = false; saveBtn.innerHTML = "บันทึก";
+        document.getElementById("start-scan-btn").disabled = false;
+        showSaveToast(err.message, "error");
+      }
+    });
+
+    function showSaveToast(message, type) {
+      const toast = document.getElementById("save-status-toast");
+      toast.textContent = message;
+      toast.className = type === "success" ? "save-status-toast success" : "save-status-toast error";
+      toast.style.display = "block";
+      setTimeout(() => { toast.style.display = "none"; }, 3000);
+    }
+
+    function renderRecentCounts() {
+      const wrapper = document.getElementById("recent-count-container-wrapper");
+      const container = document.getElementById("recent-count-container");
+      if (recentCounts.length === 0) { wrapper.style.display = "none"; container.innerHTML = ""; } else {
+        wrapper.style.display = "block"; container.innerHTML = "";
+        recentCounts.slice(0, 3).forEach(item => {
+          const div = document.createElement("div"); div.className = "recent-count-item px-3 py-2 border-bottom";
+          div.innerHTML = `<div class="d-flex justify-content-between align-items-center"><strong class="text-truncate" style="max-width: 70%;">${item.name}</strong><span class="fw-bold text-primary">${item.quantity} ชิ้น</span></div><small class="text-muted">${item.barcode}</small>`;
+          container.appendChild(div);
+        });
+      }
+    }
+
+
+    // =========================================================
+    // 📊 รายงานสรุปผล (Staff) 
+    // =========================================================
+    async function loadSummaryReport() {
+      fullSummaryReport = [];
+      const container = document.getElementById("summary-report-list");
+      const spinner = document.getElementById("summary-report-spinner");
+      container.innerHTML = ""; spinner.style.display = "block";
+      document.getElementById("filter-all").checked = true;
+
+      try {
+        // fetch รายงาน
+        const report = await callAppsScript("getSummaryReport", {});
+
+        fullSummaryReport = report;
+        spinner.style.display = "none";
+        renderSummaryReport(fullSummaryReport);
+        updateFilterCounts();
+      } catch (err) {
+        spinner.innerHTML = `<p class="text-danger">${err.message}</p>`;
+      }
+    }
+
+    function updateFilterCounts() {
+      const counts = { all: 0, short: 0, over: 0, ok: 0 };
+      fullSummaryReport.forEach(item => { counts.all++; counts[item.status]++; });
+      document.getElementById("filter-all-label").textContent = `ทั้งหมด (${counts.all})`; document.getElementById("filter-short-label").textContent = `ขาด (${counts.short})`; document.getElementById("filter-over-label").textContent = `เกิน (${counts.over})`; document.getElementById("filter-ok-label").textContent = `ตรง (${counts.ok})`;
+    }
+
+    function filterSummaryReport(status) {
+      const filteredList = (status === 'all') ? fullSummaryReport : fullSummaryReport.filter(item => item.status === status); renderSummaryReport(filteredList);
+    }
+
+    function renderSummaryReport(list) {
+      const container = document.getElementById("summary-report-list"); container.innerHTML = "";
+      if (list.length === 0) { container.innerHTML = '<p class="text-center text-muted">ไม่พบข้อมูล</p>'; return; }
+      list.forEach(item => {
+        let badgeClass = 'bg-success'; let discrepancyText = `<strong>${item.discrepancy}</strong>`;
+        if (item.status === 'short') badgeClass = 'bg-danger'; else if (item.status === 'over') { badgeClass = 'bg-warning text-dark'; discrepancyText = `<strong>+${item.discrepancy}</strong>`; }
+        const card = document.createElement("div"); card.className = `card shadow-sm mb-2 report-item ${item.status}`;
+        card.innerHTML = `<div class="card-body p-2"><div class="d-flex justify-content-between align-items-center"><div><h6 class="card-title mb-0">${item.name}</h6><small class="text-muted"><i class="bi bi-upc"></i> ${item.barcode} ${item.productCode ? `<br><i class="bi bi-tag"></i> ${item.productCode}` : ''}</small></div><span class="badge ${badgeClass} fs-6 px-2 py-2">${discrepancyText}</span></div><hr class="my-1"><div class="row text-center"><div class="col"><small class="text-muted d-block">ในระบบ</small><strong>${item.masterQty}</strong></div><div class="col"><small class="text-muted d-block">นับได้</small><strong>${item.countedQty}</strong></div></div></div>`;
+        container.appendChild(card);
+      });
+    }
+
+    // =========================================================
+    // 🏢 รายงานสรุปสาขา (Manager)
+    // =========================================================
+    async function loadManagerPage() {
+      managerFullSummaryReport = []; renderManagerSummaryReport([]);
+      const selector = document.getElementById("manager-branch-selector");
+      const loadBtn = document.getElementById("manager-load-report-btn");
+      const emailBtn = document.getElementById("manager-send-email-btn");
+
+      if (emailBtn) emailBtn.disabled = true; selector.disabled = true; loadBtn.disabled = true;
+      selector.innerHTML = '<option selected>กำลังโหลด...</option>';
+
+      try {
+        // fetch รายชื่อสาขา
+        const branchNames = await callAppsScript("getAllBranchNames", {});
+
+        selector.innerHTML = '<option value="" selected disabled>-- เลือกสาขา --</option>';
+        branchNames.forEach(branch => { const option = document.createElement("option"); option.value = branch; option.textContent = branch; selector.appendChild(option); });
+        selector.disabled = false; loadBtn.disabled = false;
+        if (emailBtn) {
+          emailBtn.addEventListener("click", handleSendEmail); // ผูก Event Listener
+        }
+      } catch (err) {
+        showManagerToast("โหลดสาขาจาก API ไม่สำเร็จ: " + err.message, "error");
+      }
+    }
+
+    async function handleManagerReportLoad() {
+      managerFullSummaryReport = [];
+      const branch = document.getElementById("manager-branch-selector").value;
+      if (!branch) { showManagerToast("กรุณาเลือกสาขา", "warning"); return; }
+
+      const container = document.getElementById("manager-report-list");
+      const spinner = document.getElementById("manager-summary-report-spinner");
+      const emailBtn = document.getElementById("manager-send-email-btn");
+
+      if (emailBtn) emailBtn.disabled = true;
+      container.innerHTML = ""; spinner.style.display = "block";
+      document.getElementById("manager-filter-all").checked = true;
+
+      try {
+        // fetch รายงาน Manager
+        const report = await callAppsScript("getSummaryReport", { branch: branch });
+
+        managerFullSummaryReport = report;
+        spinner.style.display = "none";
+        renderManagerSummaryReport(managerFullSummaryReport);
+        updateManagerFilterCounts();
+        if (emailBtn) emailBtn.disabled = false;
+      } catch (err) {
+        spinner.innerHTML = `<p class="text-danger">${err.message}</p>`;
+      }
+    }
+
+    function updateManagerFilterCounts() {
+      const counts = { all: 0, short: 0, over: 0, ok: 0 }; managerFullSummaryReport.forEach(item => { counts.all++; counts[item.status]++; });
+      document.getElementById("manager-filter-all-label").textContent = `ทั้งหมด (${counts.all})`; document.getElementById("manager-filter-short-label").textContent = `ขาด (${counts.short})`; document.getElementById("manager-filter-over-label").textContent = `เกิน (${counts.over})`; document.getElementById("manager-filter-ok-label").textContent = `ตรง (${counts.ok})`;
+    }
+
+    function filterManagerSummaryReport(status) {
+      const filteredList = (status === 'all') ? managerFullSummaryReport : managerFullSummaryReport.filter(item => item.status === status); renderManagerSummaryReport(filteredList);
+    }
+
+    function renderManagerSummaryReport(list) {
+      const container = document.getElementById("manager-report-list"); container.innerHTML = "";
+      if (list.length === 0) { container.innerHTML = '<p class="text-center text-muted">ไม่พบข้อมูล</p>'; return; }
+      list.forEach(item => {
+        let badgeClass = 'bg-success'; let discrepancyText = `<strong>${item.discrepancy}</strong>`;
+        if (item.status === 'short') badgeClass = 'bg-danger'; else if (item.status === 'over') { badgeClass = 'bg-warning text-dark'; discrepancyText = `<strong>+${item.discrepancy}</strong>`; }
+        const card = document.createElement("div"); card.className = `card shadow-sm mb-2 report-item ${item.status}`;
+        card.innerHTML = `<div class="card-body p-2"><div class="d-flex justify-content-between align-items-center"><div><h6 class="card-title mb-0">${item.name}</h6><small class="text-muted"><i class="bi bi-upc"></i> ${item.barcode} ${item.productCode ? `<br><i class="bi bi-tag"></i> ${item.productCode}` : ''}</small></div><span class="badge ${badgeClass} fs-6 px-2 py-2">${discrepancyText}</span></div><hr class="my-1"><div class="row text-center"><div class="col"><small class="text-muted d-block">ในระบบ</small><strong>${item.masterQty}</strong></div><div class="col"><small class="text-muted d-block">นับได้</small><strong>${item.countedQty}</strong></div></div></div>`;
+        container.appendChild(card);
+      });
+    }
+
+    async function handleSendEmail() {
+      const branch = document.getElementById("manager-branch-selector").value;
+      const discrepancyItems = managerFullSummaryReport.filter(item => item.status === 'short' || item.status === 'over');
+      if (discrepancyItems.length === 0) { showManagerToast("ไม่พบรายการส่วนต่าง", "warning"); return; }
+
+      const emailBtn = document.getElementById("manager-send-email-btn");
+      emailBtn.disabled = true; emailBtn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> กำลังติดต่อ API...`;
+
+      try {
+        // fetch สั่งส่งอีเมล
+        const msg = await callAppsScript("sendDiscrepancyReport", { branchName: branch, discrepancyItems: discrepancyItems });
+
+        emailBtn.disabled = false; emailBtn.innerHTML = '<i class="bi bi-envelope"></i> ส่งอีเมล';
+        showManagerToast(msg, "success");
+      } catch (err) {
+        emailBtn.disabled = false; emailBtn.innerHTML = '<i class="bi bi-envelope"></i> ส่งอีเมล';
+        showManagerToast(err.message, "error");
+      }
+    }
+
+    function showManagerToast(message, type) {
+      const toast = document.getElementById("manager-email-toast"); toast.textContent = message;
+      toast.className = (type === 'success') ? 'alert alert-success p-2' : (type === 'error' ? 'alert alert-danger p-2' : 'alert alert-warning p-2');
+      toast.style.display = 'block'; setTimeout(() => { toast.style.display = 'none'; }, 3000);
+    }
+  </script>
+</body>
+
+</html>
