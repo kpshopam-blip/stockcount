@@ -1,0 +1,71 @@
+<!-- Header ส่วนบน -->
+<div class="app-header">
+  <div class="d-flex justify-content-between align-items-center">
+    <div>
+      <h4 class="mb-0 fw-bold">นับสต็อก</h4>
+      <small class="text-white-50">
+        <i class="bi bi-geo-alt-fill me-1"></i>สาขา <span id="user-branch">...</span>
+      </small>
+    </div>
+    <div class="text-end">
+       <div class="fw-bold" id="user-name">User</div>
+       <div class="badge bg-white text-dark" id="user-role">Role</div>
+    </div>
+  </div>
+</div>
+
+<!-- เนื้อหาเมนู -->
+<div class="container-fluid px-3">
+  
+  <!-- เมนู 1: เริ่มนับสต็อก -->
+  <div class="menu-card" onclick="showPage('page-stock-count')">
+    <div class="icon-circle icon-bg-blue">
+      <i class="bi bi-upc-scan"></i>
+    </div>
+    <div>
+      <h5 class="fw-bold mb-1">เริ่มนับสต็อก</h5>
+      <small class="text-muted">สแกนและบันทึกจำนวนสินค้า</small>
+    </div>
+    <div class="ms-auto text-muted">
+      <i class="bi bi-chevron-right"></i>
+    </div>
+  </div>
+
+  <!-- เมนู 2: สรุปรายการที่นับ (Staff) -->
+  <div class="menu-card" onclick="showPage('page-summary')">
+    <div class="icon-circle icon-bg-orange">
+      <i class="bi bi-list-check"></i>
+    </div>
+    <div>
+      <h5 class="fw-bold mb-1">สรุปรายการที่นับ</h5>
+      <small class="text-muted">ตรวจสอบรายการของวันนี้</small>
+    </div>
+    <div class="ms-auto text-muted">
+      <i class="bi bi-chevron-right"></i>
+    </div>
+  </div>
+  
+  <!-- เมนู 3: สรุปยอดสาขา (Manager) - ซ่อนไว้ก่อนถ้าไม่ใช่ Manager -->
+  <div id="manager-menu-button" style="display: none;">
+    <div class="menu-card" onclick="showPage('page-manager-summary')">
+      <div class="icon-circle icon-bg-purple">
+        <i class="bi bi-pie-chart-fill"></i>
+      </div>
+      <div>
+        <h5 class="fw-bold mb-1">สรุปยอดสาขา</h5>
+        <small class="text-muted">ตรวจสอบยอด ขาด/เกิน</small>
+      </div>
+      <div class="ms-auto text-muted">
+        <i class="bi bi-chevron-right"></i>
+      </div>
+    </div>
+  </div>
+  
+  <!-- ปุ่มออกจากระบบ -->
+  <div class="text-center mt-5">
+    <button class="btn btn-link text-muted text-decoration-none" onclick="logout()">
+      <i class="bi bi-box-arrow-left me-1"></i> ออกจากระบบ
+    </button>
+  </div>
+
+</div>

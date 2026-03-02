@@ -1,0 +1,153 @@
+/* --- นำเข้าฟอนต์ Prompt --- */
+@import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap');
+
+:root {
+  /* สีหลัก */
+  --primary-dark: #0f172a;
+  --primary-main: #1e293b;
+  --accent-green: #10b981;
+  --accent-blue: #3b82f6;
+  --accent-orange: #f97316;
+  --accent-purple: #a855f7;
+  --bg-gray: #f8fafc;
+  --text-main: #334155;
+}
+
+body {
+  font-family: 'Prompt', sans-serif;
+  background-color: var(--bg-gray);
+  color: var(--text-main);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* --- หน้า Login --- */
+.login-page-bg {
+  background-color: var(--primary-dark);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  color: white;
+}
+
+.login-logo { color: #10b981; font-size: 4rem; margin-bottom: 1rem; }
+
+.login-input {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  color: white !important;
+  text-align: center;
+  font-size: 1.5rem;
+  letter-spacing: 0.5rem;
+  border-radius: 15px;
+  padding: 15px;
+  margin-bottom: 20px;
+}
+.login-input::placeholder { color: rgba(255, 255, 255, 0.4); letter-spacing: normal; font-size: 1rem; }
+
+.btn-login {
+  background-color: var(--accent-green);
+  border: none;
+  border-radius: 15px;
+  padding: 15px;
+  font-size: 1.1rem;
+  font-weight: 500;
+  width: 100%;
+  color: white;
+  box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3);
+  transition: transform 0.2s;
+}
+.btn-login:active { transform: scale(0.98); }
+
+/* --- Header --- */
+.app-header {
+  background-color: var(--primary-dark);
+  color: white;
+  padding: 15px 20px;
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  margin-bottom: 20px;
+}
+
+/* --- Menu Cards --- */
+.menu-card {
+  background: white;
+  border-radius: 20px;
+  padding: 20px;
+  margin-bottom: 15px;
+  border: none;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+  display: flex;
+  align-items: center;
+  transition: transform 0.2s;
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+}
+.menu-card:active { transform: scale(0.98); background-color: #f1f5f9; }
+
+.icon-circle {
+  width: 60px; height: 60px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin-right: 15px; font-size: 1.8rem; flex-shrink: 0;
+}
+.icon-bg-blue { background-color: #e0f2fe; color: var(--accent-blue); }
+.icon-bg-orange { background-color: #ffedd5; color: var(--accent-orange); }
+.icon-bg-purple { background-color: #f3e8ff; color: var(--accent-purple); }
+
+/* --- List Items --- */
+.list-group-item {
+  border: none; border-bottom: 1px solid #f1f5f9; padding: 15px 20px;
+}
+.list-group-item:first-child { border-top-left-radius: 15px; border-top-right-radius: 15px; }
+.list-group-item:last-child { border-bottom-right-radius: 15px; border-bottom-left-radius: 15px; border-bottom: none; }
+
+/* --- Scanner UI (แก้ไขเรื่องสัดส่วน) --- */
+#scanner-ui-overlay { background-color: black; }
+
+/* บังคับให้วิดีโอเต็มพื้นที่และไม่เบี้ยว */
+#scanner-container video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important; /* กุญแจสำคัญ: ตัดภาพส่วนเกินออก ไม่บีบภาพ */
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+/* !! ซ่อน Canvas เดิมของ Quagga ที่อาจทำให้ภาพดูซ้อนหรือเบี้ยว !! */
+#scanner-container canvas.drawingBuffer {
+  display: none !important;
+}
+
+.scanner-laser {
+   background-color: var(--accent-orange);
+   box-shadow: 0 0 10px var(--accent-orange);
+   /* ปรับตำแหน่งเลเซอร์ */
+   position: absolute;
+   top: 50%; left: 10%; width: 80%; height: 2px;
+   z-index: 10;
+}
+
+#switch-camera-btn {
+  background: rgba(255,255,255,0.2);
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: white;
+}
+
+/* --- อื่นๆ --- */
+.card { border-radius: 15px; border: none; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+.btn { border-radius: 10px; }
+.form-control { border-radius: 10px; padding: 10px 15px; border-color: #e2e8f0; }
+.form-control:focus { border-color: var(--accent-blue); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); }
+.badge { border-radius: 8px; font-weight: 500; }
+
+.save-status-toast {
+  position: absolute; top: -50px; left: 50%; transform: translateX(-50%);
+  padding: 8px 16px; border-radius: 20px; font-size: 0.9rem; font-weight: bold;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: none; z-index: 100;
+}
+.save-status-toast.success { background-color: var(--accent-green); color: white; }
+.save-status-toast.error { background-color: #ef4444; color: white; }

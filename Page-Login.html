@@ -1,0 +1,42 @@
+<div class="login-page-bg px-4">
+  <div class="text-center">
+    <!-- โลโก้ (ใช้ไอคอนกล่อง) -->
+    <div class="login-logo">
+      <i class="bi bi-box-seam-fill"></i>
+    </div>
+    
+    <h2 class="fw-bold mb-0">StockCount</h2>
+    <p class="text-white-50 mb-5">ระบบนับสต็อกสินค้า</p>
+    
+    <form id="login-form">
+      <div class="mb-3 text-start">
+        <label for="pin-input" class="form-label text-white-50 ms-1">รหัสพนักงาน (PIN)</label>
+        <input 
+          type="password" 
+          id="pin-input" 
+          class="form-control login-input" 
+          placeholder="• • • •" 
+          maxlength="6" 
+          required 
+          autocomplete="off"
+        >
+      </div>
+      
+      <div id="login-error" class="alert alert-danger py-2 rounded-3 mb-3" style="display: none; background: rgba(220, 53, 69, 0.2); border: 1px solid rgba(220, 53, 69, 0.5); color: #ff8787;">
+        <small><i class="bi bi-exclamation-circle me-1"></i> รหัส PIN ไม่ถูกต้อง</small>
+      </div>
+      
+      <button type="submit" id="login-button" class="btn-login">
+        เข้าสู่ระบบ
+      </button>
+      
+      <div id="login-spinner" class="mt-3" style="display: none;">
+        <div class="spinner-border text-success" role="status"></div>
+      </div>
+    </form>
+  </div>
+  
+  <div class="text-center mt-5 text-white-50" style="font-size: 0.8rem;">
+    <p>Version 2.0 (Modern UI)</p>
+  </div>
+</div>
