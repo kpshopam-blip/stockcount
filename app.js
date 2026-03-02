@@ -11,7 +11,7 @@ let recentCounts = [];
 
 // !! ตัวแปรสำหรับระบบกล้อง !!
 let allVideoDevices = []; 
-let currentDeviceIndex = 0; 
+let currentDeviceindex = 0; 
 let lastUsedDeviceId = null; 
 
 // ฟังก์ชันสำหรับเรียก API (แทน google.script.run)
@@ -337,8 +337,8 @@ function switchCamera() {
   
   _stopQuaggaOnly();
   
-  currentDeviceIndex = (currentDeviceIndex + 1) % allVideoDevices.length;
-  const nextDeviceId = allVideoDevices[currentDeviceIndex].deviceId;
+  currentDeviceindex = (currentDeviceindex + 1) % allVideoDevices.length;
+  const nextDeviceId = allVideoDevices[currentDeviceindex].deviceId;
   lastUsedDeviceId = nextDeviceId;
 
   startScanner(nextDeviceId);
