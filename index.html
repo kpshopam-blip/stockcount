@@ -799,9 +799,14 @@
     function startScanner(specificDeviceId = null) {
       document.getElementById("scanner-ui-overlay").style.display = "block";
 
-      if (!html5QrCode) {
-        html5QrCode = new Html5Qrcode("scanner-container");
+      // ล้างของเก่าเพื่อป้องกัน error "Element is already used"
+      if (html5QrCode) {
+        try {
+          html5QrCode.clear();
+        } catch (e) { }
       }
+
+      html5QrCode = new Html5Qrcode("scanner-container");
 
       Html5Qrcode.getCameras().then(devices => {
         if (devices && devices.length > 0) {
@@ -823,7 +828,7 @@
 
           html5QrCode.start(
             targetDeviceId,
-            { fps: 15 },
+            { fps: 15, qrbox: { width: 250, height: 250 } }, // กำหนด qrbox เพื่อให้โฟกัสง่ายขึ้น
             (decodedText) => {
               onBarcodeDetected(decodedText);
             },
@@ -845,6 +850,7 @@
       if (allVideoDevices.length < 2) return;
       if (html5QrCode && html5QrCode.isScanning) {
         html5QrCode.stop().then(() => {
+          html5QrCode.clear();
           currentDeviceIndex = (currentDeviceIndex + 1) % allVideoDevices.length;
           lastUsedDeviceId = allVideoDevices[currentDeviceIndex].id;
           startScanner(lastUsedDeviceId);
@@ -862,6 +868,8 @@
         html5QrCode.stop().then(() => {
           html5QrCode.clear();
         }).catch(err => console.warn("Stop Error:", err));
+      } else if (html5QrCode) {
+        html5QrCode.clear();
       }
     }
 
