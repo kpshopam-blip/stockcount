@@ -10,8 +10,8 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 
-  <!-- QuaggaJS -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+  <!-- HTML5-QRCode -->
+  <script src="https://unpkg.com/html5-qrcode"></script>
 
   <!-- CSS.html -> Style รวมไว้ที่นี่ -->
   <style>
@@ -586,6 +586,7 @@
     let recentCounts = [];
 
     // สำหรับระบบกล้อง 
+    let html5QrCode = null;
     let allVideoDevices = [];
     let currentDeviceIndex = 0;
     let lastUsedDeviceId = null;
@@ -794,56 +795,79 @@
     }
 
 
-    // --- ระบบกล้องอ่านบาร์โค้ด (ยังคงเหมือนเดิม QuaggaJS) ---
-    function _stopQuaggaOnly() {
-      try { Quagga.offDetected(onBarcodeDetected); Quagga.stop(); } catch (err) { console.warn(err); }
-    }
-
+    // --- ระบบกล้องอ่านบาร์โค้ด (เปลี่ยนให้ใช้ HTML5-QRCode แล้ว) ---
     function startScanner(specificDeviceId = null) {
       document.getElementById("scanner-ui-overlay").style.display = "block";
-      const constraints = { width: { min: 640, ideal: 1920 }, height: { min: 480, ideal: 1080 }, advanced: [{ focusMode: "continuous" }] };
-      let targetDeviceId = specificDeviceId;
-      if (!targetDeviceId && lastUsedDeviceId) targetDeviceId = lastUsedDeviceId;
-      if (targetDeviceId) constraints.deviceId = { exact: targetDeviceId }; else constraints.facingMode = "environment";
 
-      Quagga.init({
-        inputStream: { name: "Live", type: "LiveStream", target: document.querySelector('#scanner-container'), constraints: constraints, area: { top: "30%", right: "10%", left: "10%", bottom: "30%" } },
-        decoder: { readers: ["code_128_reader", "ean_reader", "upc_reader"] },
-        locate: true,
-      }, function (err) {
-        if (err) { showSaveToast('ไม่สามารถเปิดกล้องได้: ' + err.message, "error"); return; }
-        Quagga.start();
+      if (!html5QrCode) {
+        html5QrCode = new Html5Qrcode("scanner-container");
+      }
 
-        if (allVideoDevices.length === 0) {
-          navigator.mediaDevices.enumerateDevices().then(devices => {
-            const videoInputs = devices.filter(device => device.kind === 'videoinput');
-            const backCameras = videoInputs.filter(d => { const label = d.label.toLowerCase(); return label.includes('back') || label.includes('environment'); });
-            allVideoDevices = backCameras.length > 0 ? backCameras : videoInputs;
-            if (allVideoDevices.length > 1) document.getElementById("switch-camera-btn").style.display = "block";
+      Html5Qrcode.getCameras().then(devices => {
+        if (devices && devices.length > 0) {
+          allVideoDevices = devices;
+          if (allVideoDevices.length > 1) {
+            document.getElementById("switch-camera-btn").style.display = "block";
+          }
+
+          let targetDeviceId = specificDeviceId;
+          if (!targetDeviceId && lastUsedDeviceId) {
+            targetDeviceId = lastUsedDeviceId;
+          } else if (!targetDeviceId) {
+            const backCamera = devices.find(device => device.label.toLowerCase().includes('back') || device.label.toLowerCase().includes('environment'));
+            targetDeviceId = backCamera ? backCamera.id : devices[0].id;
+          }
+          lastUsedDeviceId = targetDeviceId;
+          currentDeviceIndex = allVideoDevices.findIndex(d => d.id === targetDeviceId);
+          if (currentDeviceIndex === -1) currentDeviceIndex = 0;
+
+          html5QrCode.start(
+            targetDeviceId,
+            { fps: 15 },
+            (decodedText) => {
+              onBarcodeDetected(decodedText);
+            },
+            (errorMessage) => {
+              // Ignore typical frame reading errors
+            }
+          ).catch((err) => {
+            showSaveToast('ไม่สามารถเปิดกล้องได้: ' + err, "error");
           });
+        } else {
+          showSaveToast('ไม่พบอุปกรณ์กล้องบนเครื่องนี้', "error");
         }
-        setTimeout(() => {
-          const track = Quagga.CameraAccess.getActiveTrack();
-          if (track && typeof track.applyConstraints === 'function') track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(e => { });
-        }, 500);
+      }).catch(err => {
+        showSaveToast('ข้อผิดพลาดในการเข้าถึงกล้อง: ' + err, "error");
       });
-      Quagga.onDetected(onBarcodeDetected);
     }
 
     function switchCamera() {
       if (allVideoDevices.length < 2) return;
-      _stopQuaggaOnly();
-      currentDeviceIndex = (currentDeviceIndex + 1) % allVideoDevices.length;
-      lastUsedDeviceId = allVideoDevices[currentDeviceIndex].deviceId;
-      startScanner(lastUsedDeviceId);
+      if (html5QrCode && html5QrCode.isScanning) {
+        html5QrCode.stop().then(() => {
+          currentDeviceIndex = (currentDeviceIndex + 1) % allVideoDevices.length;
+          lastUsedDeviceId = allVideoDevices[currentDeviceIndex].id;
+          startScanner(lastUsedDeviceId);
+        }).catch(err => console.warn("Stop Error:", err));
+      } else {
+        currentDeviceIndex = (currentDeviceIndex + 1) % allVideoDevices.length;
+        lastUsedDeviceId = allVideoDevices[currentDeviceIndex].id;
+        startScanner(lastUsedDeviceId);
+      }
     }
 
     function stopScanner() {
-      _stopQuaggaOnly(); document.getElementById("scanner-ui-overlay").style.display = "none";
+      document.getElementById("scanner-ui-overlay").style.display = "none";
+      if (html5QrCode && html5QrCode.isScanning) {
+        html5QrCode.stop().then(() => {
+          html5QrCode.clear();
+        }).catch(err => console.warn("Stop Error:", err));
+      }
     }
 
-    function onBarcodeDetected(result) {
-      playBeepSound(); stopScanner(); const code = result.codeResult.code;
+    function onBarcodeDetected(code) {
+      if (typeof code === 'object' && code.codeResult) code = code.codeResult.code;
+      playBeepSound(); stopScanner();
       const foundItem = stockMasterList.find(item => (item.barcode && item.barcode === code) || (item.productCode && item.productCode === code));
       if (foundItem) { renderStockList([foundItem]); selectItemFromList(foundItem, 'scan'); } else {
         currentScannedItem = null;
