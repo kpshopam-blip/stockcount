@@ -173,11 +173,22 @@
     #scanner-container {
       width: 100%;
       height: 100%;
+      position: relative;
+    }
+
+    #scanner-container video {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover !important;
+      position: absolute;
+      top: 0;
+      left: 0;
     }
 
     /* ห้าม html5-qrcode สร้าง style บน shaded region ทับ html เรา */
     #qr-shaded-region {
       border: none !important;
+      z-index: 5 !important;
     }
 
     .scanner-laser {
@@ -801,32 +812,50 @@
         html5QrCode = new Html5Qrcode("scanner-container");
       }
 
+      // สำหรับมือถือ บังคับเลนส์หลังแบบ exact ก่อน ถ้าไม่ได้ค่อย fallback ถอยมาแบบรัดกุม
       const cameraConfig = specificDeviceId
         ? specificDeviceId
-        : { facingMode: "environment" };
+        : { facingMode: { exact: "environment" } };
 
-      // ใช้ค่า Default ของไลบรารี: fps=10, qrbox=250
-      html5QrCode.start(
-        cameraConfig,
-        { fps: 10, qrbox: 250 },
-        function (decodedText) {
-          onBarcodeDetected(decodedText);
-        },
-        function (err) { /* frame error - ปกติไม่ต้องสนใจ */ }
-      ).then(function () {
-        isScannerRunning = true;
-        // ดึงรายชื่อกล้องทั้งหมดสำหรับปุ่มสลับ
-        Html5Qrcode.getCameras().then(function (devices) {
-          if (devices && devices.length > 1) {
-            allVideoDevices = devices;
-            document.getElementById("switch-camera-btn").style.display = "block";
+      // ใช้ค่า Default ขอไลบรารี: fps=10 + ซ่อน UI ภายในบางส่วน
+      const config = {
+        fps: 10,
+        qrbox: { width: 250, height: 180 },
+        aspectRatio: 1.0, // ช่วยให้ frame ยืดตรงตาม CSS
+        disableFlip: false
+      };
+
+      // ฟังก์ชันพยายามเปิดกล้อง (มี Fallback)
+      const tryStartCamera = (configToTry) => {
+        html5QrCode.start(
+          configToTry,
+          config,
+          function (decodedText) {
+            onBarcodeDetected(decodedText);
+          },
+          function (err) { /* frame error - ปกติไม่ต้องสนใจ */ }
+        ).then(function () {
+          isScannerRunning = true;
+          Html5Qrcode.getCameras().then(function (devices) {
+            if (devices && devices.length > 1) {
+              allVideoDevices = devices;
+              document.getElementById("switch-camera-btn").style.display = "block";
+            }
+          }).catch(function () { });
+        }).catch(function (err) {
+          // ถ้าการบังคับแบบ exact เฟล ให้ลองแบบหลวมๆ
+          if (typeof configToTry === 'object' && configToTry.facingMode && configToTry.facingMode.exact) {
+            console.warn("Exact environment camera failed, trying fallback...");
+            tryStartCamera({ facingMode: "environment" });
+          } else {
+            isScannerRunning = false;
+            showSaveToast("เปิดกล้องไม่ได้: " + err, "error");
+            document.getElementById("scanner-ui-overlay").style.display = "none";
           }
-        }).catch(function () { });
-      }).catch(function (err) {
-        isScannerRunning = false;
-        showSaveToast("เปิดกล้องไม่ได้: " + err, "error");
-        document.getElementById("scanner-ui-overlay").style.display = "none";
-      });
+        });
+      };
+
+      tryStartCamera(cameraConfig);
     }
 
     function switchCamera() {
