@@ -795,86 +795,92 @@
     }
 
 
-    // --- ระบบกล้องอ่านบาร์โค้ด (HTML5-QRCode v2.3.8) ---
-    function startScanner(specificDeviceId = null) {
+    // =========================================================
+    // 📷 ระบบกล้องสแกนบาร์โค้ด / QR Code (HTML5-QRCode v2.3.8)
+    // =========================================================
+    let isScannerRunning = false; // Flag สำหรับตรวจสอบสถานะกล้อง
+
+    async function startScanner(specificDeviceId = null) {
+      // ถ้ากล้องกำลังทำงานอยู่ ให้หยุดก่อนแล้วค่อยเริ่มใหม่
+      if (isScannerRunning && html5QrCode) {
+        try {
+          await html5QrCode.stop();
+          isScannerRunning = false;
+        } catch (e) { console.warn("Stop before restart:", e); }
+      }
+
       document.getElementById("scanner-ui-overlay").style.display = "block";
 
-      // ล้างหน้าเก่าทุกครั้ง
-      try { if (html5QrCode) { html5QrCode.clear(); } } catch (e) { }
-
+      // สร้าง Instance ใหม่ทุกครั้ง (ป้องกัน state ค้าง)
+      try {
+        if (html5QrCode) { html5QrCode.clear(); }
+      } catch (e) { }
       html5QrCode = new Html5Qrcode("scanner-container");
 
-      // กำหนดกล้องที่จะใช้
-      let cameraIdOrConstraint;
-      if (specificDeviceId) {
-        cameraIdOrConstraint = specificDeviceId;
-        lastUsedDeviceId = specificDeviceId;
-      } else {
-        // ใช้ facingMode: "environment" แทนเพื่อให้เบราว์เซอร์เลือกเลนสหลังที่ดีที่สุดเอง
-        cameraIdOrConstraint = { facingMode: "environment" };
-      }
+      // เลือกกล้องที่จะใช้
+      const cameraTarget = specificDeviceId ? specificDeviceId : { facingMode: "environment" };
 
-      html5QrCode.start(
-        cameraIdOrConstraint,
-        {
-          fps: 10,
-          qrbox: { width: 300, height: 180 }, // สี่เหลี่ยมแนวนอนสำหรับบาร์โค้ด
-          formatsToSupport: [
-            Html5QrcodeSupportedFormats.QR_CODE,
-            Html5QrcodeSupportedFormats.EAN_13,
-            Html5QrcodeSupportedFormats.EAN_8,
-            Html5QrcodeSupportedFormats.CODE_128,
-            Html5QrcodeSupportedFormats.UPC_A,
-            Html5QrcodeSupportedFormats.UPC_E,
-            Html5QrcodeSupportedFormats.CODE_39
-          ]
-        },
-        (decodedText) => {
-          onBarcodeDetected(decodedText);
-        },
-        (errorMessage) => {
-          // ไม่ต้องสนใจ error เล็กๆ นี้เป็นปกติ (frame ที่ยังไม่เจอบาร์โค้ด)
-        }
-      ).then(() => {
-        // เปิดกล้องสำเร็จ ดึงรายชื่อกล้องทั้งหมดเพื่อแสดงปุ่มสลับกล้อง
-        Html5Qrcode.getCameras().then(devices => {
-          if (devices && devices.length > 0) {
+      try {
+        await html5QrCode.start(
+          cameraTarget,
+          {
+            fps: 10,
+            qrbox: { width: 300, height: 180 }, // กรอบแนวนอนเหมาะกับบาร์โค้ด
+            formatsToSupport: [
+              Html5QrcodeSupportedFormats.QR_CODE,
+              Html5QrcodeSupportedFormats.EAN_13,
+              Html5QrcodeSupportedFormats.EAN_8,
+              Html5QrcodeSupportedFormats.CODE_128,
+              Html5QrcodeSupportedFormats.UPC_A,
+              Html5QrcodeSupportedFormats.UPC_E,
+              Html5QrcodeSupportedFormats.CODE_39
+            ]
+          },
+          (decodedText) => {
+            onBarcodeDetected(decodedText);
+          },
+          () => { /* เงียบ error ที่เกิดตาม frame ปกติ */ }
+        );
+
+        isScannerRunning = true;
+
+        // หลังเปิดกล้องสำเร็จ → ดึงรายชื่อกล้องทั้งหมด
+        try {
+          const devices = await Html5Qrcode.getCameras();
+          if (devices && devices.length > 1) {
             allVideoDevices = devices;
-            if (allVideoDevices.length > 1) {
-              document.getElementById("switch-camera-btn").style.display = "block";
-            }
+            document.getElementById("switch-camera-btn").style.display = "block";
           }
-        }).catch(() => { });
-      }).catch((err) => {
-        showSaveToast('ไม่สามารถเปิดกล้องได้: ' + err, "error");
-        document.getElementById("scanner-ui-overlay").style.display = "none";
-      });
-    }
+        } catch (e) { }
 
-    function switchCamera() {
-      if (allVideoDevices.length < 2) return;
-      if (html5QrCode && html5QrCode.isScanning) {
-        html5QrCode.stop().then(() => {
-          html5QrCode.clear();
-          currentDeviceIndex = (currentDeviceIndex + 1) % allVideoDevices.length;
-          lastUsedDeviceId = allVideoDevices[currentDeviceIndex].id;
-          startScanner(lastUsedDeviceId);
-        }).catch(err => console.warn("Stop Error:", err));
-      } else {
-        currentDeviceIndex = (currentDeviceIndex + 1) % allVideoDevices.length;
-        lastUsedDeviceId = allVideoDevices[currentDeviceIndex].id;
-        startScanner(lastUsedDeviceId);
+      } catch (err) {
+        isScannerRunning = false;
+        showSaveToast('เปิดกล้องไม่ได้: ' + err, "error");
+        document.getElementById("scanner-ui-overlay").style.display = "none";
       }
     }
 
-    function stopScanner() {
+    async function switchCamera() {
+      if (allVideoDevices.length < 2) return;
+      if (isScannerRunning && html5QrCode) {
+        try {
+          await html5QrCode.stop();
+          isScannerRunning = false;
+        } catch (e) { }
+      }
+      currentDeviceIndex = (currentDeviceIndex + 1) % allVideoDevices.length;
+      lastUsedDeviceId = allVideoDevices[currentDeviceIndex].id;
+      startScanner(lastUsedDeviceId);
+    }
+
+    async function stopScanner() {
       document.getElementById("scanner-ui-overlay").style.display = "none";
-      if (html5QrCode && html5QrCode.isScanning) {
-        html5QrCode.stop().then(() => {
-          html5QrCode.clear();
-        }).catch(err => console.warn("Stop Error:", err));
-      } else if (html5QrCode) {
-        html5QrCode.clear();
+      document.getElementById("switch-camera-btn").style.display = "none";
+      if (isScannerRunning && html5QrCode) {
+        try {
+          await html5QrCode.stop();
+          isScannerRunning = false;
+        } catch (e) { console.warn("Stop error:", e); }
       }
     }
 
