@@ -169,28 +169,20 @@
       background-color: black;
     }
 
-    #scanner-container video {
-      width: 100% !important;
-      height: 100% !important;
-      object-fit: cover !important;
-      position: absolute;
-      top: 0;
-      left: 0;
+    /* บอกให้บล็อกใส่ scanner-container รับภาพกล้องจาก html5-qrcode โดยตรง */
+    #scanner-container {
+      width: 100%;
+      height: 100%;
     }
 
-    #scanner-container canvas.drawingBuffer {
-      display: none !important;
+    /* ห้าม html5-qrcode สร้าง style บน shaded region ทับ html เรา */
+    #qr-shaded-region {
+      border: none !important;
     }
 
     .scanner-laser {
-      background-color: var(--accent-orange);
-      box-shadow: 0 0 10px var(--accent-orange);
-      position: absolute;
-      top: 50%;
-      left: 10%;
-      width: 80%;
-      height: 2px;
-      z-index: 10;
+      display: none;
+      /* ซ่อน laser เพราะ html5-qrcode มี UI กรอบสแกนให้แล้ว */
     }
 
     #switch-camera-btn {
@@ -796,91 +788,68 @@
 
 
     // =========================================================
-    // 📷 ระบบกล้องสแกนบาร์โค้ด / QR Code (HTML5-QRCode v2.3.8)
+    // 📷 ระบบกล้องสแกน (HTML5-QRCode v2.3.8 - ค่า Default)
     // =========================================================
-    let isScannerRunning = false; // Flag สำหรับตรวจสอบสถานะกล้อง
+    let isScannerRunning = false;
 
-    async function startScanner(specificDeviceId = null) {
-      // ถ้ากล้องกำลังทำงานอยู่ ให้หยุดก่อนแล้วค่อยเริ่มใหม่
-      if (isScannerRunning && html5QrCode) {
-        try {
-          await html5QrCode.stop();
-          isScannerRunning = false;
-        } catch (e) { console.warn("Stop before restart:", e); }
-      }
+    function startScanner(specificDeviceId = null) {
+      if (isScannerRunning) return; // ป้องกันเปิดซ้ำ
 
       document.getElementById("scanner-ui-overlay").style.display = "block";
 
-      // สร้าง Instance ใหม่ทุกครั้ง (ป้องกัน state ค้าง)
-      try {
-        if (html5QrCode) { html5QrCode.clear(); }
-      } catch (e) { }
-      html5QrCode = new Html5Qrcode("scanner-container");
+      if (!html5QrCode) {
+        html5QrCode = new Html5Qrcode("scanner-container");
+      }
 
-      // เลือกกล้องที่จะใช้
-      const cameraTarget = specificDeviceId ? specificDeviceId : { facingMode: "environment" };
+      const cameraConfig = specificDeviceId
+        ? specificDeviceId
+        : { facingMode: "environment" };
 
-      try {
-        await html5QrCode.start(
-          cameraTarget,
-          {
-            fps: 10,
-            qrbox: { width: 300, height: 180 }, // กรอบแนวนอนเหมาะกับบาร์โค้ด
-            formatsToSupport: [
-              Html5QrcodeSupportedFormats.QR_CODE,
-              Html5QrcodeSupportedFormats.EAN_13,
-              Html5QrcodeSupportedFormats.EAN_8,
-              Html5QrcodeSupportedFormats.CODE_128,
-              Html5QrcodeSupportedFormats.UPC_A,
-              Html5QrcodeSupportedFormats.UPC_E,
-              Html5QrcodeSupportedFormats.CODE_39
-            ]
-          },
-          (decodedText) => {
-            onBarcodeDetected(decodedText);
-          },
-          () => { /* เงียบ error ที่เกิดตาม frame ปกติ */ }
-        );
-
+      // ใช้ค่า Default ของไลบรารี: fps=10, qrbox=250
+      html5QrCode.start(
+        cameraConfig,
+        { fps: 10, qrbox: 250 },
+        function (decodedText) {
+          onBarcodeDetected(decodedText);
+        },
+        function (err) { /* frame error - ปกติไม่ต้องสนใจ */ }
+      ).then(function () {
         isScannerRunning = true;
-
-        // หลังเปิดกล้องสำเร็จ → ดึงรายชื่อกล้องทั้งหมด
-        try {
-          const devices = await Html5Qrcode.getCameras();
+        // ดึงรายชื่อกล้องทั้งหมดสำหรับปุ่มสลับ
+        Html5Qrcode.getCameras().then(function (devices) {
           if (devices && devices.length > 1) {
             allVideoDevices = devices;
             document.getElementById("switch-camera-btn").style.display = "block";
           }
-        } catch (e) { }
-
-      } catch (err) {
+        }).catch(function () { });
+      }).catch(function (err) {
         isScannerRunning = false;
-        showSaveToast('เปิดกล้องไม่ได้: ' + err, "error");
+        showSaveToast("เปิดกล้องไม่ได้: " + err, "error");
         document.getElementById("scanner-ui-overlay").style.display = "none";
-      }
+      });
     }
 
-    async function switchCamera() {
+    function switchCamera() {
       if (allVideoDevices.length < 2) return;
-      if (isScannerRunning && html5QrCode) {
-        try {
-          await html5QrCode.stop();
-          isScannerRunning = false;
-        } catch (e) { }
-      }
       currentDeviceIndex = (currentDeviceIndex + 1) % allVideoDevices.length;
       lastUsedDeviceId = allVideoDevices[currentDeviceIndex].id;
-      startScanner(lastUsedDeviceId);
+      stopScanner();
+      // รอให้ stop เสร็จก่อน (html5QrCode.stop() returns promise)
+      setTimeout(function () {
+        startScanner(lastUsedDeviceId);
+      }, 500);
     }
 
-    async function stopScanner() {
+    function stopScanner() {
       document.getElementById("scanner-ui-overlay").style.display = "none";
       document.getElementById("switch-camera-btn").style.display = "none";
-      if (isScannerRunning && html5QrCode) {
-        try {
-          await html5QrCode.stop();
+      if (html5QrCode && isScannerRunning) {
+        html5QrCode.stop().then(function () {
           isScannerRunning = false;
-        } catch (e) { console.warn("Stop error:", e); }
+        }).catch(function (err) {
+          isScannerRunning = false;
+          console.warn("Stop error:", err);
+        });
       }
     }
 
