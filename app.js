@@ -52,6 +52,25 @@ async function callApi(action, payload) {
 
 // โหลดเสร็จแล้ว ผูก Event Listener ต่างๆ เลย (ไม่ต้อง fetch HTML อีกต่อไป เพราะทุกอย่างอยู่ใน Index.html แล้ว)
 document.addEventListener("DOMContentLoaded", () => {
+  // --- Auto Login Check (3 ชั่วโมง) ---
+  try {
+    const savedUserJson = localStorage.getItem('kpshopUser');
+    const savedTimestamp = localStorage.getItem('kpshopLoginTimestamp');
+    if (savedUserJson && savedTimestamp) {
+      const now = new Date().getTime();
+      const threeHoursInMs = 3 * 60 * 60 * 1000;
+      if (now - parseInt(savedTimestamp) < threeHoursInMs) {
+         const userObj = JSON.parse(savedUserJson);
+         // Simulate successful login flow immediately
+         onLoginSuccess(userObj);
+      } else {
+         // Expired
+         localStorage.removeItem('kpshopUser');
+         localStorage.removeItem('kpshopLoginTimestamp');
+      }
+    }
+  } catch(e) { console.warn("Auto login failed", e); }
+
   const loginForm = document.getElementById("login-form");
   if (loginForm) {
     loginForm.addEventListener("submit", function (e) {
@@ -120,10 +139,18 @@ function showPage(pageId) {
 
 // --- Login Functions ---
 function onLoginSuccess(userObject) {
-  document.getElementById("login-spinner").style.display = "none";
-  document.getElementById("login-button").disabled = false;
+  const spinner = document.getElementById("login-spinner");
+  const btn = document.getElementById("login-button");
+  if (spinner) spinner.style.display = "none";
+  if (btn) btn.disabled = false;
+  
   if (userObject) {
     currentUser = userObject;
+    
+    // บันทึก Session ลงเครื่อง (นาน 3 ชม.)
+    localStorage.setItem('kpshopUser', JSON.stringify(userObject));
+    localStorage.setItem('kpshopLoginTimestamp', new Date().getTime());
+
     document.getElementById("user-name").textContent = currentUser.name;
     document.getElementById("user-role").textContent = currentUser.role;
     document.getElementById("user-branch").textContent = currentUser.branch;
@@ -142,6 +169,8 @@ function onLoginFailure() {
 
 function logout() {
   currentUser = null;
+  localStorage.removeItem('kpshopUser');
+  localStorage.removeItem('kpshopLoginTimestamp');
   document.getElementById("pin-input").value = "";
   document.getElementById("login-error").style.display = "none";
   showPage("page-login");
