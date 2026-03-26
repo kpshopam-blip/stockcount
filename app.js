@@ -88,6 +88,23 @@ function playBeepSound() {
   } catch (e) { console.error("Web Audio API error", e); }
 }
 
+function playErrorSound() {
+  try {
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    gainNode.gain.value = 0.1;
+    oscillator.frequency.value = 300;
+    oscillator.type = "sawtooth";
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.3);
+    gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+  } catch (e) { console.error("Web Audio API error", e); }
+}
+
 // --- Navigation ---
 function showPage(pageId) {
   document.querySelectorAll(".page-container").forEach((page) => {
@@ -324,7 +341,6 @@ function stopScanner() {
 }
 
 function onBarcodeDetected(result) {
-  playBeepSound();
   stopScanner();
 
   const code = result.codeResult.code;
@@ -335,12 +351,15 @@ function onBarcodeDetected(result) {
   );
 
   if (foundItem) {
+    playBeepSound();
     renderStockList([foundItem]);
     selectItemFromList(foundItem, 'scan');
   } else {
+    playErrorSound();
     currentScannedItem = null;
     const alertBox = document.getElementById("item-not-found-alert");
     alertBox.innerHTML = `
+      <button type="button" class="btn-close position-absolute top-0 end-0 m-2" onclick="document.getElementById('item-not-found-alert').style.display='none'"></button>
       <i class="bi bi-exclamation-triangle-fill"></i> ไม่พบสินค้านี้ในระบบ<br>
       <div class="mt-2 p-2 bg-white rounded border border-danger text-danger">
         <small>รหัสที่อ่านได้:</small><br>
@@ -349,6 +368,7 @@ function onBarcodeDetected(result) {
     `;
     alertBox.style.display = "block";
     document.getElementById("scan-result-card").style.display = "none";
+    document.getElementById("quantity-input").value = "";
     document.getElementById("quantity-input").disabled = true;
     document.getElementById("save-count-btn").disabled = true;
   }
