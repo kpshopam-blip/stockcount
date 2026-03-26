@@ -710,22 +710,37 @@ function showManagerToast(message, type) {
 
 // --- Supabase Database Functions ---
 
+function getBranchIlikeTerm(branchStr) {
+  if (!branchStr) return '%';
+  const clean = branchStr.replace(/^สาขา\s*/, '').trim();
+  return `%${clean.replace(/\s+/g, '%')}%`;
+}
+
+function isSameBranch(b1, b2) {
+  const norm1 = (b1 || "").replace(/สาขา/g, '').replace(/\s/g, '').toLowerCase();
+  const norm2 = (b2 || "").replace(/สาขา/g, '').replace(/\s/g, '').toLowerCase();
+  return norm1 === norm2;
+}
+
 async function dbCheckLogin(pin) {
   const { data, error } = await supabaseClient.from('users').select('*').eq('pin', pin);
   if (error) throw new Error("Database Error: " + error.message);
   if (data && data.length > 0) {
     const user = data[0];
-    return { name: user.name, role: user.role, branch: user.branch ? user.branch.replace(/\s/g, '') : '' };
+    return { name: user.name, role: user.role, branch: user.branch ? user.branch.trim() : '' };
   }
   return null;
 }
 
 async function dbGetStockMasterList(branch) {
-  const { data, error } = await supabaseClient.from('master_stock').select('*').eq('branch', branch);
+  const ilikeTerm = getBranchIlikeTerm(branch);
+  const { data, error } = await supabaseClient.from('master_stock').select('*').ilike('branch', ilikeTerm).limit(50000);
   if (error) throw new Error("Database Error: " + error.message);
   
   const masterMap = {};
   data.forEach(row => {
+    if (!isSameBranch(row.branch, branch)) return;
+    
     const barcode = row.barcode;
     const qty = parseFloat(row.quantity) || 0;
     if (masterMap[barcode]) {
@@ -756,14 +771,17 @@ async function dbLogStockCount(dataToSave) {
 }
 
 async function dbGetSummaryReport(branch) {
-  const { data: masterDataItems, error: masterError } = await supabaseClient.from('master_stock').select('*').eq('branch', branch);
+  const ilikeTerm = getBranchIlikeTerm(branch);
+  const { data: masterDataItems, error: masterError } = await supabaseClient.from('master_stock').select('*').ilike('branch', ilikeTerm).limit(50000);
   if (masterError) throw new Error("Master Error: " + masterError.message);
   
-  const { data: countDataItems, error: countError } = await supabaseClient.from('count_log').select('*').eq('branch', branch);
+  const { data: countDataItems, error: countError } = await supabaseClient.from('count_log').select('*').ilike('branch', ilikeTerm).limit(50000);
   if (countError) throw new Error("Count Error: " + countError.message);
 
   const masterData = {};
   masterDataItems.forEach(row => {
+    if (!isSameBranch(row.branch, branch)) return;
+    
     const barcode = row.barcode;
     const qty = parseFloat(row.quantity) || 0;
     if (masterData[barcode]) {
@@ -779,6 +797,8 @@ async function dbGetSummaryReport(branch) {
 
   const countedData = {};
   countDataItems.forEach(row => {
+    if (!isSameBranch(row.branch, branch)) return;
+    
     const barcode = row.barcode;
     const qty = parseFloat(row.quantity) || 0;
     countedData[barcode] = (countedData[barcode] || 0) + qty;
@@ -822,11 +842,15 @@ async function dbGetSummaryReport(branch) {
 }
 
 async function dbGetAllBranchNames() {
-  const { data, error } = await supabaseClient.from('users').select('branch');
+  const { data, error } = await supabaseClient.from('users').select('branch').limit(10000);
   if (error) throw new Error("Branch Load Error: " + error.message);
-  const branchSet = new Set();
+  
+  const branchMap = new Map();
   data.forEach(row => { 
-    if (row.branch) branchSet.add(row.branch.replace(/\s/g, '')); 
+    if (row.branch) {
+      const key = row.branch.replace(/สาขา/g, '').replace(/\s/g, '').toLowerCase();
+      if (!branchMap.has(key)) branchMap.set(key, row.branch.trim());
+    }
   });
-  return Array.from(branchSet);
+  return Array.from(branchMap.values());
 }
