@@ -1,5 +1,10 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbzGoI8O1LJTMyeAIDr-tfeqv0vyKUThLRnDuxGRIjEaMBxkn1AoY7BMRICFxGGsa72MLQ/exec"; // !!! นำลิงก์ Web App จาก Google Apps Script มาใส่ที่นี่
+const API_URL = "https://script.google.com/macros/s/AKfycbzGoI8O1LJTMyeAIDr-tfeqv0vyKUThLRnDuxGRIjEaMBxkn1AoY7BMRICFxGGsa72MLQ/exec"; // ใช้สำหรับส่งอีเมลเท่านั้น
 const API_KEY = "kpshop_secure_12345";
+
+// !!! นำ URL และ ANON_KEY จากเบื้องหลังของ Supabase มาใส่ที่นี่
+const SUPABASE_URL = "https://ijqurluuhgwozktlysma.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlqcXVybHV1aGd3b3prdGx5c21hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MTM2NTAsImV4cCI6MjA5MDA4OTY1MH0.qYEjZnMq6fWV1RxZcQu3OPlV87IeueQCdfJ6sZzrTE0";
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ตัวแปร global
 let currentUser = null;
@@ -55,7 +60,7 @@ document.addEventListener("DOMContentLoaded", () => {
       document.getElementById("login-spinner").style.display = "block";
       document.getElementById("login-button").disabled = true;
       document.getElementById("login-error").style.display = "none";
-      callApi("checkLogin", { pin: pin })
+      dbCheckLogin(pin)
         .then(onLoginSuccess)
         .catch(onLoginFailure);
     });
@@ -144,7 +149,7 @@ function loadStockCountPage() {
   recentCounts = [];
   renderRecentCounts();
 
-  callApi("getStockMasterList", { branch: currentUser.branch })
+  dbGetStockMasterList(currentUser.branch)
     .then(onStockListLoaded)
     .catch(onStockListFailed);
 }
@@ -411,7 +416,7 @@ function handleSaveCount() {
     branch: currentUser.branch
   };
 
-  callApi("logStockCount", { data: dataToSave })
+  dbLogStockCount(dataToSave)
     .then(onSaveSuccess)
     .catch(onSaveFailure);
 }
@@ -496,7 +501,7 @@ function loadSummaryReport() {
   spinner.style.display = "block";
   document.getElementById("filter-all").checked = true;
 
-  callApi("getSummaryReport", { branch: currentUser.branch })
+  dbGetSummaryReport(currentUser.branch)
     .then(onSummaryReportLoaded)
     .catch(onSummaryReportFailed);
 }
@@ -571,7 +576,7 @@ function loadManagerPage() {
   loadBtn.disabled = true;
   selector.innerHTML = '<option selected>กำลังโหลด...</option>';
 
-  callApi("getAllBranchNames", {})
+  dbGetAllBranchNames()
     .then(onBranchNamesLoaded)
     .catch(onBranchNamesFailed);
 }
@@ -604,7 +609,7 @@ function handleManagerReportLoad() {
   spinner.style.display = "block";
   document.getElementById("manager-filter-all").checked = true;
 
-  callApi("getSummaryReport", { branch: branch })
+  dbGetSummaryReport(branch)
     .then(onManagerSummaryReportLoaded)
     .catch(onManagerSummaryReportFailed);
 }
@@ -701,4 +706,127 @@ function showManagerToast(message, type) {
   toast.className = (type === 'success') ? 'alert alert-success p-2' : (type === 'error' ? 'alert alert-danger p-2' : 'alert alert-warning p-2');
   toast.style.display = 'block';
   setTimeout(() => { toast.style.display = 'none'; }, 3000);
+}
+
+// --- Supabase Database Functions ---
+
+async function dbCheckLogin(pin) {
+  const { data, error } = await supabaseClient.from('users').select('*').eq('pin', pin);
+  if (error) throw new Error("Database Error: " + error.message);
+  if (data && data.length > 0) {
+    const user = data[0];
+    return { name: user.name, role: user.role, branch: user.branch ? user.branch.replace(/\s/g, '') : '' };
+  }
+  return null;
+}
+
+async function dbGetStockMasterList(branch) {
+  const { data, error } = await supabaseClient.from('master_stock').select('*').eq('branch', branch);
+  if (error) throw new Error("Database Error: " + error.message);
+  
+  const masterMap = {};
+  data.forEach(row => {
+    const barcode = row.barcode;
+    const qty = parseFloat(row.quantity) || 0;
+    if (masterMap[barcode]) {
+      masterMap[barcode].masterQuantity += qty;
+    } else {
+      masterMap[barcode] = {
+        productCode: row.product_code,
+        barcode: row.barcode,
+        name: row.name,
+        masterQuantity: qty
+      };
+    }
+  });
+  return Object.values(masterMap);
+}
+
+async function dbLogStockCount(dataToSave) {
+  const { error } = await supabaseClient.from('count_log').insert([{
+    barcode: dataToSave.barcode,
+    quantity: dataToSave.quantity,
+    user_name: dataToSave.user,
+    branch: dataToSave.branch,
+    name: dataToSave.name,
+    created_at: new Date().toISOString()
+  }]);
+  if (error) throw new Error("Save Error: " + error.message);
+  return "บันทึกข้อมูลสำเร็จ!";
+}
+
+async function dbGetSummaryReport(branch) {
+  const { data: masterDataItems, error: masterError } = await supabaseClient.from('master_stock').select('*').eq('branch', branch);
+  if (masterError) throw new Error("Master Error: " + masterError.message);
+  
+  const { data: countDataItems, error: countError } = await supabaseClient.from('count_log').select('*').eq('branch', branch);
+  if (countError) throw new Error("Count Error: " + countError.message);
+
+  const masterData = {};
+  masterDataItems.forEach(row => {
+    const barcode = row.barcode;
+    const qty = parseFloat(row.quantity) || 0;
+    if (masterData[barcode]) {
+      masterData[barcode].masterQty += qty;
+    } else {
+      masterData[barcode] = {
+        productCode: row.product_code,
+        name: row.name,
+        masterQty: qty
+      };
+    }
+  });
+
+  const countedData = {};
+  countDataItems.forEach(row => {
+    const barcode = row.barcode;
+    const qty = parseFloat(row.quantity) || 0;
+    countedData[barcode] = (countedData[barcode] || 0) + qty;
+  });
+
+  const report = [];
+  for (const barcode in masterData) {
+    const masterItem = masterData[barcode];
+    const countedQty = countedData[barcode] || 0;
+    const masterQty = masterItem.masterQty || 0;
+    const discrepancy = countedQty - masterQty;
+
+    let status = 'ok';
+    if (discrepancy < 0) status = 'short';
+    else if (discrepancy > 0) status = 'over';
+    
+    report.push({
+      productCode: masterItem.productCode,
+      barcode: barcode,
+      name: masterItem.name,
+      masterQty: masterQty,
+      countedQty: countedQty,
+      discrepancy: discrepancy,
+      status: status
+    });
+    delete countedData[barcode];
+  }
+  
+  for (const barcode in countedData) {
+     report.push({
+      productCode: "-", 
+      barcode: barcode,
+      name: `(ไม่มีใน Master)`,
+      masterQty: 0,
+      countedQty: countedData[barcode],
+      discrepancy: countedData[barcode],
+      status: 'over'
+    });
+  }
+  return report;
+}
+
+async function dbGetAllBranchNames() {
+  const { data, error } = await supabaseClient.from('users').select('branch');
+  if (error) throw new Error("Branch Load Error: " + error.message);
+  const branchSet = new Set();
+  data.forEach(row => { 
+    if (row.branch) branchSet.add(row.branch.replace(/\s/g, '')); 
+  });
+  return Array.from(branchSet);
 }
