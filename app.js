@@ -13,6 +13,7 @@ let currentScannedItem = null;
 let fullSummaryReport = [];
 let managerFullSummaryReport = [];
 let recentCounts = [];
+let countedSummaryMap = {};
 
 // !! ตัวแปรสำหรับระบบกล้อง !!
 let allVideoDevices = [];
@@ -191,13 +192,20 @@ function loadStockCountPage() {
   document.getElementById("branch-name-display").textContent = currentUser.branch;
 
   stockMasterList = [];
+  countedSummaryMap = {};
   resetScanPage();
   recentCounts = [];
   renderRecentCounts();
 
-  dbGetStockMasterList(currentUser.branch)
-    .then(onStockListLoaded)
-    .catch(onStockListFailed);
+  Promise.all([
+    dbGetStockMasterList(currentUser.branch),
+    dbGetBranchCountedSummary(currentUser.branch)
+  ])
+  .then(([list, countedMap]) => {
+    countedSummaryMap = countedMap;
+    onStockListLoaded(list);
+  })
+  .catch(onStockListFailed);
 }
 
 function onStockListLoaded(list) {
@@ -234,6 +242,12 @@ function renderStockList(list) {
   list.forEach(item => {
     const li = document.createElement("li");
     li.className = "list-group-item";
+    
+    const countedQty = countedSummaryMap[item.barcode] || 0;
+    const countedBadge = countedQty > 0 
+      ? `<span class="badge bg-success float-end mt-2 me-1">นับแล้ว ${countedQty} ชิ้น</span>` 
+      : '';
+
     li.innerHTML = `
       <strong>${item.name}</strong><br>
       <small class="text-muted">
@@ -241,6 +255,7 @@ function renderStockList(list) {
          ${item.productCode ? `| <i class="bi bi-tag"></i> ${item.productCode}` : ''}
       </small>
       <span class="badge bg-secondary float-end mt-2">${item.masterQuantity} ชิ้น</span>
+      ${countedBadge}
     `;
     li.onclick = () => selectItemFromList(item, 'tap');
     container.appendChild(li);
@@ -411,6 +426,19 @@ function selectItemFromList(item, source = 'tap') {
   currentScannedItem = item;
   document.getElementById("result-barcode").textContent = item.barcode;
   document.getElementById("result-name").textContent = item.name;
+  
+  // แสดงผลจำนวนสินค้าที่เคยนับสะสมไว้
+  const countedQty = countedSummaryMap[item.barcode] || 0;
+  const countedBadge = document.getElementById("result-counted-badge");
+  if (countedBadge) {
+    if (countedQty > 0) {
+      countedBadge.textContent = `นับแล้ว ${countedQty} ชิ้น`;
+      countedBadge.style.display = "inline-block";
+    } else {
+      countedBadge.style.display = "none";
+    }
+  }
+
   document.getElementById("scan-result-card").style.display = "block";
   document.getElementById("item-not-found-alert").style.display = "none";
 
@@ -426,6 +454,10 @@ function resetScanPage() {
   currentScannedItem = null;
   document.getElementById("scan-result-card").style.display = "none";
   document.getElementById("item-not-found-alert").style.display = "none";
+  
+  const countedBadge = document.getElementById("result-counted-badge");
+  if (countedBadge) countedBadge.style.display = "none";
+
   const qtyInput = document.getElementById("quantity-input");
   qtyInput.value = "";
   qtyInput.disabled = true;
@@ -487,6 +519,13 @@ function onSaveSuccess(message) {
   toast.style.display = "block";
 
   const quantity = parseInt(document.getElementById("quantity-input").value);
+  
+  // เพิ่มข้อมูลสะสมไปยัง Map
+  if (currentScannedItem && !isNaN(quantity)) {
+    const barcode = currentScannedItem.barcode;
+    countedSummaryMap[barcode] = (countedSummaryMap[barcode] || 0) + quantity;
+  }
+
   recentCounts.unshift({
     name: currentScannedItem.name,
     quantity: quantity,
@@ -902,6 +941,21 @@ async function dbGetAllBranchNames() {
     }
   });
   return Array.from(branchMap.values());
+}
+
+async function dbGetBranchCountedSummary(branch) {
+  const ilikeTerm = getBranchIlikeTerm(branch);
+  const { data, error } = await supabaseClient.from('count_log').select('barcode, quantity, branch').ilike('branch', ilikeTerm).limit(50000);
+  if (error) throw new Error("Load Count Log Error: " + error.message);
+  
+  const summary = {};
+  data.forEach(row => {
+    if (!isSameBranch(row.branch, branch)) return;
+    const barcode = row.barcode;
+    const qty = parseFloat(row.quantity) || 0;
+    summary[barcode] = (summary[barcode] || 0) + qty;
+  });
+  return summary;
 }
 
 // --- ฟังก์ชันการจัดการระบบฐานข้อมูล (Database Sync & Clear Tools) ---
