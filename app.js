@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbzGoI8O1LJTMyeAIDr-tfeqv0vyKUThLRnDuxGRIjEaMBxkn1AoY7BMRICFxGGsa72MLQ/exec"; // ใช้สำหรับส่งอีเมลเท่านั้น
+const API_URL = "https://script.google.com/macros/s/AKfycbyhadHp0ZTV3LCogE1_-QDJNaU68GhBpPS5THROQphve9ywW3w9DtPutXFRIK0b5dK5tA/exec"; // ใช้สำหรับส่งอีเมลเท่านั้น
 const API_KEY = "kpshop_secure_12345";
 
 // !!! นำ URL และ ANON_KEY จากเบื้องหลังของ Supabase มาใส่ที่นี่
@@ -903,3 +903,138 @@ async function dbGetAllBranchNames() {
   });
   return Array.from(branchMap.values());
 }
+
+// --- ฟังก์ชันการจัดการระบบฐานข้อมูล (Database Sync & Clear Tools) ---
+
+function showDbStatus(message, type = 'info') {
+  const statusDiv = document.getElementById("db-status-toast");
+  if (!statusDiv) return;
+  statusDiv.textContent = message;
+  
+  // แปลง type ของ bootstrap alert
+  let alertClass = 'alert-info';
+  if (type === 'success') alertClass = 'alert-success';
+  if (type === 'danger' || type === 'error') alertClass = 'alert-danger';
+  if (type === 'warning') alertClass = 'alert-warning';
+  
+  statusDiv.className = `alert mt-3 mb-0 p-2 text-center ${alertClass}`;
+  statusDiv.style.display = 'block';
+  
+  if (type === 'success' || type === 'danger' || type === 'error') {
+    setTimeout(() => { statusDiv.style.display = 'none'; }, 6000);
+  }
+}
+
+async function executeSyncData() {
+  const syncModalElement = document.getElementById('syncConfirmModal');
+  const modal = bootstrap.Modal.getInstance(syncModalElement);
+  if (modal) modal.hide();
+
+  const syncBtn = document.getElementById('manager-sync-btn');
+  const clearBtn = document.getElementById('manager-clear-log-btn');
+  
+  if (syncBtn) syncBtn.disabled = true;
+  if (clearBtn) clearBtn.disabled = true;
+  
+  showDbStatus("กำลังดึงข้อมูลจาก Google Sheets (กรุณารอประมาณ 5-15 วินาที)...", "warning");
+
+  try {
+    // 1. ดึงข้อมูลจาก Sheets ผ่าน Apps Script API
+    const syncData = await callApi("getSheetsDataForSync", {});
+    if (!syncData || !syncData.masterStock || !syncData.users) {
+      throw new Error("ไม่ได้รับข้อมูลที่ถูกต้องจาก Google Sheets");
+    }
+
+    showDbStatus(`ดึงข้อมูลสำเร็จ! (สินค้า: ${syncData.masterStock.length} รายการ, พนักงาน: ${syncData.users.length} รายการ) กำลังลบข้อมูลเก่าบน Supabase...`, "warning");
+
+    // 2. ลบข้อมูลเก่าในตาราง master_stock บน Supabase
+    const { error: deleteStockError } = await supabaseClient
+      .from('master_stock')
+      .delete()
+      .neq('barcode', 'placeholder_for_clear_all_row_xyz');
+    if (deleteStockError) throw new Error("ลบข้อมูลสินค้าเก่าล้มเหลว: " + deleteStockError.message);
+
+    // 3. ลบข้อมูลเก่าในตาราง users บน Supabase
+    const { error: deleteUsersError } = await supabaseClient
+      .from('users')
+      .delete()
+      .neq('name', 'placeholder_for_clear_all_row_xyz');
+    if (deleteUsersError) throw new Error("ลบข้อมูลผู้ใช้เก่าล้มเหลว: " + deleteUsersError.message);
+
+    showDbStatus("ลบข้อมูลเก่าสำเร็จแล้ว กำลังนำเข้าข้อมูลใหม่ไปยัง Supabase...", "warning");
+
+    // 4. นำเข้าข้อมูลสินค้าหลัก (Master Stock) - ใช้การแบ่ง Batch ละ 500 รายการเพื่อไม่ให้เกิด timeout หรือขนาดเกินลิมิต
+    const masterStockList = syncData.masterStock;
+    const BATCH_SIZE = 500;
+    for (let i = 0; i < masterStockList.length; i += BATCH_SIZE) {
+      const batch = masterStockList.slice(i, i + BATCH_SIZE);
+      showDbStatus(`กำลังบันทึกข้อมูลสินค้าหลัก (${i} ถึง ${Math.min(i + BATCH_SIZE, masterStockList.length)} จากทั้งหมด ${masterStockList.length} รายการ)...`, "warning");
+      
+      const { error: insertStockError } = await supabaseClient
+        .from('master_stock')
+        .insert(batch);
+      
+      if (insertStockError) throw new Error("บันทึกข้อมูลสินค้าล้มเหลวในชุดที่ " + (i / BATCH_SIZE + 1) + ": " + insertStockError.message);
+    }
+
+    // 5. นำเข้าข้อมูลพนักงาน (Users)
+    showDbStatus(`กำลังบันทึกข้อมูลผู้ใช้งาน (${syncData.users.length} รายการ)...`, "warning");
+    const { error: insertUsersError } = await supabaseClient
+      .from('users')
+      .insert(syncData.users);
+    if (insertUsersError) throw new Error("บันทึกข้อมูลผู้ใช้ล้มเหลว: " + insertUsersError.message);
+
+    // โหลดรายชื่อสาขาในหน้ารายงานใหม่ (เพราะพนักงานอาจเปลี่ยนไป)
+    try {
+      dbGetAllBranchNames().then(onBranchNamesLoaded).catch(onBranchNamesFailed);
+    } catch(e) { console.warn("Failed to reload branch list", e); }
+
+    showDbStatus("อัปเดตข้อมูลสินค้าและพนักงานจาก Google Sheet สำเร็จเรียบร้อยแล้ว!", "success");
+
+  } catch (error) {
+    console.error("Sync error:", error);
+    showDbStatus("เกิดข้อผิดพลาดในการอัปเดตข้อมูล: " + error.message, "danger");
+  } finally {
+    if (syncBtn) syncBtn.disabled = false;
+    if (clearBtn) clearBtn.disabled = false;
+  }
+}
+
+async function executeClearCountLog() {
+  const clearModalElement = document.getElementById('clearLogConfirmModal');
+  const modal = bootstrap.Modal.getInstance(clearModalElement);
+  if (modal) modal.hide();
+
+  const syncBtn = document.getElementById('manager-sync-btn');
+  const clearBtn = document.getElementById('manager-clear-log-btn');
+  
+  if (syncBtn) syncBtn.disabled = true;
+  if (clearBtn) clearBtn.disabled = true;
+
+  showDbStatus("กำลังล้างข้อมูลประวัติการบันทึกนับสต็อกบน Supabase...", "warning");
+
+  try {
+    // ลบข้อมูลทั้งหมดในตาราง count_log บน Supabase
+    const { error } = await supabaseClient
+      .from('count_log')
+      .delete()
+      .neq('barcode', 'placeholder_for_clear_all_row_xyz');
+
+    if (error) throw error;
+
+    // รีเซ็ตตัวแปรประวัติการดึงข้อมูลรายงานในหน้าเว็บปัจจุบันด้วย
+    managerFullSummaryReport = [];
+    renderManagerSummaryReport([]);
+    updateManagerFilterCounts();
+
+    showDbStatus("ล้างข้อมูลประวัติการนับสต็อกทั้งหมดสำเร็จเรียบร้อยแล้ว!", "success");
+
+  } catch (error) {
+    console.error("Clear count log error:", error);
+    showDbStatus("เกิดข้อผิดพลาดในการล้างข้อมูล: " + error.message, "danger");
+  } finally {
+    if (syncBtn) syncBtn.disabled = false;
+    if (clearBtn) clearBtn.disabled = false;
+  }
+}
+
