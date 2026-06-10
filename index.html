@@ -230,6 +230,79 @@
       </div>
       <div id="manager-email-toast" style="display: none;"></div>
       <div id="manager-report-list" class="pb-3"></div>
+
+      <!-- ===== แผงควบคุมจัดการข้อมูลระบบ (Manager DB Control Panel) ===== -->
+      <div class="card border-danger border-opacity-25 bg-light mb-4 rounded-3 shadow-sm">
+        <div class="card-header bg-danger text-white fw-bold py-2 d-flex align-items-center">
+          <i class="bi bi-shield-lock-fill me-2"></i> <span>สำหรับผู้จัดการ: จัดการฐานข้อมูลระบบ</span>
+        </div>
+        <div class="card-body p-3">
+          <p class="card-text text-muted mb-3" style="font-size: 0.85rem;">
+            <i class="bi bi-info-circle me-1"></i> การกดปุ่มเหล่านี้จะส่งผลกระทบต่อข้อมูลหลักในระบบ Supabase กรุณาตรวจสอบและดำเนินการด้วยความระมัดระวัง
+          </p>
+          <div class="d-grid gap-2">
+            <!-- ปุ่มดึงข้อมูลและอัปเดตระบบ -->
+            <button type="button" class="btn btn-outline-danger py-2.5 fw-bold d-flex align-items-center justify-content-center" id="manager-sync-btn" data-bs-toggle="modal" data-bs-target="#syncConfirmModal">
+              <i class="bi bi-arrow-down-up me-2"></i> อัปเดตข้อมูลจาก Google Sheet
+            </button>
+            <!-- ปุ่มล้างข้อมูลการนับสต็อก -->
+            <button type="button" class="btn btn-outline-secondary py-2.5 fw-bold d-flex align-items-center justify-content-center" id="manager-clear-log-btn" data-bs-toggle="modal" data-bs-target="#clearLogConfirmModal">
+              <i class="bi bi-trash3-fill me-2"></i> ล้างข้อมูลรายการที่นับได้
+            </button>
+          </div>
+          <!-- แจ้งสถานะของฐานข้อมูล -->
+          <div id="db-status-toast" class="alert mt-3 mb-0 p-2 text-center" style="display: none; font-size: 0.9rem;"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===== Modal ยืนยันการซิงค์ข้อมูลจาก Sheets ===== -->
+  <div class="modal fade" id="syncConfirmModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="syncConfirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg" style="border-radius: 15px; overflow: hidden;">
+        <div class="modal-header bg-danger text-white border-0 py-3">
+          <h5 class="modal-title fw-bold d-flex align-items-center" id="syncConfirmModalLabel">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> ยืนยันการอัปเดตข้อมูลระบบ?
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" id="sync-confirm-close-x"></button>
+        </div>
+        <div class="modal-body p-4">
+          <p class="mb-3">ระบบจะทำการดึงข้อมูลสินค้าทั้งหมดจากชีต <strong>"รายการนับสต็อก"</strong> และข้อมูลพนักงานจากชีต <strong>"Users"</strong> มาอัปโหลดไปยัง Supabase</p>
+          <div class="alert alert-warning py-2.5 px-3 mb-0 border-0 rounded-3 bg-warning bg-opacity-15 text-warning-emphasis">
+            <small><i class="bi bi-info-circle-fill me-1"></i> <strong>ข้อควรระวัง:</strong> ข้อมูลสินค้าและรายชื่อพนักงานชุดเดิมบน Supabase ทั้งหมดจะถูกลบออกและเขียนทับด้วยข้อมูลใหม่ทันที!</small>
+          </div>
+        </div>
+        <div class="modal-footer border-0 bg-light py-2">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal" id="sync-confirm-cancel-btn">ยกเลิก</button>
+          <button type="button" class="btn btn-danger px-4 fw-bold" id="sync-confirm-ok-btn" onclick="executeSyncData()">ยืนยันอัปเดตข้อมูล</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Modal ยืนยันการล้างข้อมูลที่นับได้ ===== -->
+  <div class="modal fade" id="clearLogConfirmModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="clearLogConfirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg" style="border-radius: 15px; overflow: hidden;">
+        <div class="modal-header bg-dark text-white border-0 py-3">
+          <h5 class="modal-title fw-bold d-flex align-items-center" id="clearLogConfirmModalLabel">
+            <i class="bi bi-trash3-fill me-2"></i> ยืนยันการล้างประวัติการนับ?
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" id="clear-confirm-close-x"></button>
+        </div>
+        <div class="modal-body p-4">
+          <p class="mb-3">คุณแน่ใจหรือไม่ว่าต้องการล้างประวัติข้อมูล <strong>"รายการที่นับได้"</strong> ทั้งหมดในฐานข้อมูล?</p>
+          <div class="alert alert-danger py-2.5 px-3 mb-0 border-0 rounded-3 bg-danger bg-opacity-15 text-danger-emphasis">
+            <small><i class="bi bi-exclamation-octagon-fill me-1"></i> <strong>คำเตือน:</strong> การดำเนินการนี้จะลบประวัติการบันทึกจำนวนสต็อกที่สแกนนับทั้งหมด ข้อมูลจะถูกลบอย่างถาวรและไม่สามารถกู้คืนได้!</small>
+          </div>
+        </div>
+        <div class="modal-footer border-0 bg-light py-2">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal" id="clear-confirm-cancel-btn">ยกเลิก</button>
+          <button type="button" class="btn btn-danger px-4 fw-bold" id="clear-confirm-ok-btn" onclick="executeClearCountLog()">ล้างข้อมูลทันที</button>
+        </div>
+      </div>
     </div>
   </div>
 
