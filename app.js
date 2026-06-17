@@ -1043,7 +1043,7 @@ async function dbGetBranchCountedSummary(branch) {
   }
   
   const summary = {};
-  data.forEach(row => {
+  allData.forEach(row => {
     if (!isSameBranch(row.branch, branch)) return;
     const barcode = row.barcode;
     const qty = parseFloat(row.quantity) || 0;
