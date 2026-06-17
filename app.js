@@ -822,11 +822,35 @@ async function dbCheckLogin(pin) {
 
 async function dbGetStockMasterList(branch) {
   const ilikeTerm = getBranchIlikeTerm(branch);
-  const { data, error } = await supabaseClient.from('master_stock').select('*').ilike('branch', ilikeTerm).limit(50000);
-  if (error) throw new Error("Database Error: " + error.message);
+  
+  let allData = [];
+  let from = 0;
+  const limit = 1000;
+  let hasMore = true;
+  
+  while (hasMore) {
+    const { data, error } = await supabaseClient
+      .from('master_stock')
+      .select('*')
+      .ilike('branch', ilikeTerm)
+      .range(from, from + limit - 1);
+      
+    if (error) throw new Error("Database Error: " + error.message);
+    
+    if (data && data.length > 0) {
+      allData = allData.concat(data);
+      if (data.length < limit) {
+        hasMore = false;
+      } else {
+        from += limit;
+      }
+    } else {
+      hasMore = false;
+    }
+  }
   
   const masterMap = {};
-  data.forEach(row => {
+  allData.forEach(row => {
     if (!isSameBranch(row.branch, branch)) return;
     
     const barcode = row.barcode;
@@ -860,11 +884,57 @@ async function dbLogStockCount(dataToSave) {
 
 async function dbGetSummaryReport(branch) {
   const ilikeTerm = getBranchIlikeTerm(branch);
-  const { data: masterDataItems, error: masterError } = await supabaseClient.from('master_stock').select('*').ilike('branch', ilikeTerm).limit(50000);
-  if (masterError) throw new Error("Master Error: " + masterError.message);
   
-  const { data: countDataItems, error: countError } = await supabaseClient.from('count_log').select('*').ilike('branch', ilikeTerm).limit(50000);
-  if (countError) throw new Error("Count Error: " + countError.message);
+  let masterDataItems = [];
+  let fromMaster = 0;
+  const limit = 1000;
+  let hasMoreMaster = true;
+  
+  while (hasMoreMaster) {
+    const { data, error } = await supabaseClient
+      .from('master_stock')
+      .select('*')
+      .ilike('branch', ilikeTerm)
+      .range(fromMaster, fromMaster + limit - 1);
+      
+    if (error) throw new Error("Master Error: " + error.message);
+    
+    if (data && data.length > 0) {
+      masterDataItems = masterDataItems.concat(data);
+      if (data.length < limit) {
+        hasMoreMaster = false;
+      } else {
+        fromMaster += limit;
+      }
+    } else {
+      hasMoreMaster = false;
+    }
+  }
+  
+  let countDataItems = [];
+  let fromCount = 0;
+  let hasMoreCount = true;
+  
+  while (hasMoreCount) {
+    const { data, error } = await supabaseClient
+      .from('count_log')
+      .select('*')
+      .ilike('branch', ilikeTerm)
+      .range(fromCount, fromCount + limit - 1);
+      
+    if (error) throw new Error("Count Error: " + error.message);
+    
+    if (data && data.length > 0) {
+      countDataItems = countDataItems.concat(data);
+      if (data.length < limit) {
+        hasMoreCount = false;
+      } else {
+        fromCount += limit;
+      }
+    } else {
+      hasMoreCount = false;
+    }
+  }
 
   const masterData = {};
   masterDataItems.forEach(row => {
@@ -945,8 +1015,32 @@ async function dbGetAllBranchNames() {
 
 async function dbGetBranchCountedSummary(branch) {
   const ilikeTerm = getBranchIlikeTerm(branch);
-  const { data, error } = await supabaseClient.from('count_log').select('barcode, quantity, branch').ilike('branch', ilikeTerm).limit(50000);
-  if (error) throw new Error("Load Count Log Error: " + error.message);
+  
+  let allData = [];
+  let from = 0;
+  const limit = 1000;
+  let hasMore = true;
+  
+  while (hasMore) {
+    const { data, error } = await supabaseClient
+      .from('count_log')
+      .select('barcode, quantity, branch')
+      .ilike('branch', ilikeTerm)
+      .range(from, from + limit - 1);
+      
+    if (error) throw new Error("Load Count Log Error: " + error.message);
+    
+    if (data && data.length > 0) {
+      allData = allData.concat(data);
+      if (data.length < limit) {
+        hasMore = false;
+      } else {
+        from += limit;
+      }
+    } else {
+      hasMore = false;
+    }
+  }
   
   const summary = {};
   data.forEach(row => {
