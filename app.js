@@ -1093,7 +1093,18 @@ async function executeSyncData() {
       throw new Error("ไม่ได้รับข้อมูลที่ถูกต้องจาก Google Sheets");
     }
 
-    showDbStatus(`ดึงข้อมูลสำเร็จ! (สินค้า: ${syncData.masterStock.length} รายการ, พนักงาน: ${syncData.users.length} รายการ) กำลังลบข้อมูลเก่าบน Supabase...`, "warning");
+    // คัดกรองข้อมูลว่างออกเพื่อความปลอดภัย (ทั้งสินค้าและพนักงาน)
+    const masterStockList = syncData.masterStock.filter(item => 
+      (item.product_code && item.product_code.trim() !== "") || 
+      (item.barcode && item.barcode.trim() !== "") || 
+      (item.name && item.name.trim() !== "")
+    );
+    const usersList = syncData.users.filter(item => 
+      (item.name && item.name.trim() !== "") || 
+      (item.pin && item.pin.trim() !== "")
+    );
+
+    showDbStatus(`ดึงข้อมูลสำเร็จ! (สินค้าที่มีข้อมูล: ${masterStockList.length} รายการ, พนักงานที่มีข้อมูล: ${usersList.length} รายการ) กำลังลบข้อมูลเก่าบน Supabase...`, "warning");
 
     // 2. ลบข้อมูลเก่าในตาราง master_stock บน Supabase
     const { error: deleteStockError } = await supabaseClient
@@ -1112,7 +1123,6 @@ async function executeSyncData() {
     showDbStatus("ลบข้อมูลเก่าสำเร็จแล้ว กำลังนำเข้าข้อมูลใหม่ไปยัง Supabase...", "warning");
 
     // 4. นำเข้าข้อมูลสินค้าหลัก (Master Stock) - ใช้การแบ่ง Batch ละ 500 รายการเพื่อไม่ให้เกิด timeout หรือขนาดเกินลิมิต
-    const masterStockList = syncData.masterStock;
     const BATCH_SIZE = 500;
     for (let i = 0; i < masterStockList.length; i += BATCH_SIZE) {
       const batch = masterStockList.slice(i, i + BATCH_SIZE);
@@ -1126,10 +1136,10 @@ async function executeSyncData() {
     }
 
     // 5. นำเข้าข้อมูลพนักงาน (Users)
-    showDbStatus(`กำลังบันทึกข้อมูลผู้ใช้งาน (${syncData.users.length} รายการ)...`, "warning");
+    showDbStatus(`กำลังบันทึกข้อมูลผู้ใช้งาน (${usersList.length} รายการ)...`, "warning");
     const { error: insertUsersError } = await supabaseClient
       .from('users')
-      .insert(syncData.users);
+      .insert(usersList);
     if (insertUsersError) throw new Error("บันทึกข้อมูลผู้ใช้ล้มเหลว: " + insertUsersError.message);
 
     // โหลดรายชื่อสาขาในหน้ารายงานใหม่ (เพราะพนักงานอาจเปลี่ยนไป)
