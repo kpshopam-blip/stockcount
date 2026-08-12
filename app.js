@@ -38,10 +38,16 @@ async function callApi(action, payload) {
     try {
       jsonResp = JSON.parse(content);
     } catch (e) {
-      throw new Error("เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์ (API Error)");
+      if (content.includes("<!DOCTYPE html>") || content.includes("<html")) {
+        throw new Error("เซิร์ฟเวอร์ Google Apps Script คืนค่าหน้า HTML (โปรดตรวจสอบสิทธิ์การ Deploy เป็น 'Anyone')");
+      }
+      throw new Error("การรับข้อมูลขัดข้อง (ข้อความตอบกลับ: " + content.substring(0, 80) + ")");
     }
 
     if (jsonResp.status !== 'success') {
+      if (jsonResp.message === 'Action ไม่ถูกต้อง') {
+        throw new Error("Google Apps Script ยังไม่ได้ทำ New Deployment เพื่ออัปเดตฟังก์ชัน getSheetsDataForSync (โปรดกด Deploy ใหม่ใน Apps Script)");
+      }
       throw new Error(jsonResp.message || 'เกิดข้อผิดพลาดจากเซิร์ฟเวอร์');
     }
     return jsonResp.data;
@@ -954,12 +960,16 @@ async function dbGetSummaryReport(branch) {
   });
 
   const countedData = {};
+  const countedNames = {};
   countDataItems.forEach(row => {
     if (!isSameBranch(row.branch, branch)) return;
     
     const barcode = row.barcode;
     const qty = parseFloat(row.quantity) || 0;
     countedData[barcode] = (countedData[barcode] || 0) + qty;
+    if (row.name && row.name.trim()) {
+      countedNames[barcode] = row.name.trim();
+    }
   });
 
   const report = [];
