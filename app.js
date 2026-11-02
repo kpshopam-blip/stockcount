@@ -1,10 +1,27 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbyhadHp0ZTV3LCogE1_-QDJNaU68GhBpPS5THROQphve9ywW3w9DtPutXFRIK0b5dK5tA/exec"; // ใช้สำหรับส่งอีเมลเท่านั้น
 const API_KEY = "kpshop_secure_12345";
 
-// !!! นำ URL และ ANON_KEY จากเบื้องหลังของ Supabase มาใส่ที่นี่
-const SUPABASE_URL = "https://ijqurluuhgwozktlysma.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlqcXVybHV1aGd3b3prdGx5c21hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MTM2NTAsImV4cCI6MjA5MDA4OTY1MH0.qYEjZnMq6fWV1RxZcQu3OPlV87IeueQCdfJ6sZzrTE0";
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// API สำหรับเชื่อมต่อ Cloudflare D1 Database (Always-On ไม่หลับ)
+const CLOUDFLARE_API_URL = "https://stock-api.kpshop-am.workers.dev";
+
+// ฟังก์ชันสำหรับเรียกใช้งาน Cloudflare Database API
+async function callCloudflareDb(action, payload = {}) {
+  try {
+    const response = await fetch(CLOUDFLARE_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, payload })
+    });
+    const resData = await response.json();
+    if (resData.status !== 'success') {
+      throw new Error(resData.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อฐานข้อมูล Cloudflare');
+    }
+    return resData.data;
+  } catch (error) {
+    console.error('Cloudflare API Error (' + action + '):', error);
+    throw error;
+  }
+}
 
 // ตัวแปร global
 let currentUser = null;
@@ -817,46 +834,17 @@ function isSameBranch(b1, b2) {
 }
 
 async function dbCheckLogin(pin) {
-  const { data, error } = await supabaseClient.from('users').select('*').eq('pin', pin);
-  if (error) throw new Error("Database Error: " + error.message);
-  if (data && data.length > 0) {
-    const user = data[0];
+  const user = await callCloudflareDb('checkLogin', { pin: pin });
+  if (user) {
     return { name: user.name, role: user.role, branch: user.branch ? user.branch.trim() : '' };
   }
   return null;
 }
 
 async function dbGetStockMasterList(branch) {
-  const ilikeTerm = getBranchIlikeTerm(branch);
-  
-  let allData = [];
-  let from = 0;
-  const limit = 1000;
-  let hasMore = true;
-  
-  while (hasMore) {
-    const { data, error } = await supabaseClient
-      .from('master_stock')
-      .select('*')
-      .ilike('branch', ilikeTerm)
-      .range(from, from + limit - 1);
-      
-    if (error) throw new Error("Database Error: " + error.message);
-    
-    if (data && data.length > 0) {
-      allData = allData.concat(data);
-      if (data.length < limit) {
-        hasMore = false;
-      } else {
-        from += limit;
-      }
-    } else {
-      hasMore = false;
-    }
-  }
-  
+  const list = await callCloudflareDb('getStockMasterList', { branch });
   const masterMap = {};
-  allData.forEach(row => {
+  (list || []).forEach(row => {
     if (!isSameBranch(row.branch, branch)) return;
     
     const barcode = row.barcode;
@@ -876,71 +864,21 @@ async function dbGetStockMasterList(branch) {
 }
 
 async function dbLogStockCount(dataToSave) {
-  const { error } = await supabaseClient.from('count_log').insert([{
+  await callCloudflareDb('logStockCount', {
     barcode: dataToSave.barcode,
     quantity: dataToSave.quantity,
     user_name: dataToSave.user,
     branch: dataToSave.branch,
     name: dataToSave.name,
     created_at: new Date().toISOString()
-  }]);
-  if (error) throw new Error("Save Error: " + error.message);
+  });
   return "บันทึกข้อมูลสำเร็จ!";
 }
 
 async function dbGetSummaryReport(branch) {
-  const ilikeTerm = getBranchIlikeTerm(branch);
-  
-  let masterDataItems = [];
-  let fromMaster = 0;
-  const limit = 1000;
-  let hasMoreMaster = true;
-  
-  while (hasMoreMaster) {
-    const { data, error } = await supabaseClient
-      .from('master_stock')
-      .select('*')
-      .ilike('branch', ilikeTerm)
-      .range(fromMaster, fromMaster + limit - 1);
-      
-    if (error) throw new Error("Master Error: " + error.message);
-    
-    if (data && data.length > 0) {
-      masterDataItems = masterDataItems.concat(data);
-      if (data.length < limit) {
-        hasMoreMaster = false;
-      } else {
-        fromMaster += limit;
-      }
-    } else {
-      hasMoreMaster = false;
-    }
-  }
-  
-  let countDataItems = [];
-  let fromCount = 0;
-  let hasMoreCount = true;
-  
-  while (hasMoreCount) {
-    const { data, error } = await supabaseClient
-      .from('count_log')
-      .select('*')
-      .ilike('branch', ilikeTerm)
-      .range(fromCount, fromCount + limit - 1);
-      
-    if (error) throw new Error("Count Error: " + error.message);
-    
-    if (data && data.length > 0) {
-      countDataItems = countDataItems.concat(data);
-      if (data.length < limit) {
-        hasMoreCount = false;
-      } else {
-        fromCount += limit;
-      }
-    } else {
-      hasMoreCount = false;
-    }
-  }
+  const data = await callCloudflareDb('getSummaryReport', { branch });
+  const masterDataItems = (data && data.masterStock) || [];
+  const countDataItems = (data && data.countLogs) || [];
 
   const masterData = {};
   masterDataItems.forEach(row => {
@@ -960,16 +898,12 @@ async function dbGetSummaryReport(branch) {
   });
 
   const countedData = {};
-  const countedNames = {};
   countDataItems.forEach(row => {
     if (!isSameBranch(row.branch, branch)) return;
     
     const barcode = row.barcode;
     const qty = parseFloat(row.quantity) || 0;
     countedData[barcode] = (countedData[barcode] || 0) + qty;
-    if (row.name && row.name.trim()) {
-      countedNames[barcode] = row.name.trim();
-    }
   });
 
   const report = [];
@@ -999,7 +933,7 @@ async function dbGetSummaryReport(branch) {
      report.push({
       productCode: "-", 
       barcode: barcode,
-      name: `(ไม่มีใน Master)`,
+      name: "(ไม่มีใน Master)",
       masterQty: 0,
       countedQty: countedData[barcode],
       discrepancy: countedData[barcode],
@@ -1010,50 +944,21 @@ async function dbGetSummaryReport(branch) {
 }
 
 async function dbGetAllBranchNames() {
-  const { data, error } = await supabaseClient.from('users').select('branch').limit(10000);
-  if (error) throw new Error("Branch Load Error: " + error.message);
-  
+  const branches = await callCloudflareDb('getAllBranches', {});
   const branchMap = new Map();
-  data.forEach(row => { 
-    if (row.branch) {
-      const key = row.branch.replace(/สาขา/g, '').replace(/\s/g, '').toLowerCase();
-      if (!branchMap.has(key)) branchMap.set(key, row.branch.trim());
+  (branches || []).forEach(branch => { 
+    if (branch) {
+      const key = branch.replace(/สาขา/g, '').replace(/\s/g, '').toLowerCase();
+      if (!branchMap.has(key)) branchMap.set(key, branch.trim());
     }
   });
   return Array.from(branchMap.values());
 }
 
 async function dbGetBranchCountedSummary(branch) {
-  const ilikeTerm = getBranchIlikeTerm(branch);
-  
-  let allData = [];
-  let from = 0;
-  const limit = 1000;
-  let hasMore = true;
-  
-  while (hasMore) {
-    const { data, error } = await supabaseClient
-      .from('count_log')
-      .select('barcode, quantity, branch')
-      .ilike('branch', ilikeTerm)
-      .range(from, from + limit - 1);
-      
-    if (error) throw new Error("Load Count Log Error: " + error.message);
-    
-    if (data && data.length > 0) {
-      allData = allData.concat(data);
-      if (data.length < limit) {
-        hasMore = false;
-      } else {
-        from += limit;
-      }
-    } else {
-      hasMore = false;
-    }
-  }
-  
+  const list = await callCloudflareDb('getBranchCountedSummary', { branch });
   const summary = {};
-  allData.forEach(row => {
+  (list || []).forEach(row => {
     if (!isSameBranch(row.branch, branch)) return;
     const barcode = row.barcode;
     const qty = parseFloat(row.quantity) || 0;
@@ -1069,13 +974,12 @@ function showDbStatus(message, type = 'info') {
   if (!statusDiv) return;
   statusDiv.textContent = message;
   
-  // แปลง type ของ bootstrap alert
   let alertClass = 'alert-info';
   if (type === 'success') alertClass = 'alert-success';
   if (type === 'danger' || type === 'error') alertClass = 'alert-danger';
   if (type === 'warning') alertClass = 'alert-warning';
   
-  statusDiv.className = `alert mt-3 mb-0 p-2 text-center ${alertClass}`;
+  statusDiv.className = 'alert mt-3 mb-0 p-2 text-center ' + alertClass;
   statusDiv.style.display = 'block';
   
   if (type === 'success' || type === 'danger' || type === 'error') {
@@ -1114,50 +1018,20 @@ async function executeSyncData() {
       (item.pin && item.pin.trim() !== "")
     );
 
-    showDbStatus(`ดึงข้อมูลสำเร็จ! (สินค้าที่มีข้อมูล: ${masterStockList.length} รายการ, พนักงานที่มีข้อมูล: ${usersList.length} รายการ) กำลังลบข้อมูลเก่าบน Supabase...`, "warning");
+    showDbStatus('ดึงข้อมูลสำเร็จ! (สินค้า: ' + masterStockList.length + ' รายการ, พนักงาน: ' + usersList.length + ' รายการ) กำลังนำเข้า Cloudflare D1...', "warning");
 
-    // 2. ลบข้อมูลเก่าในตาราง master_stock บน Supabase
-    const { error: deleteStockError } = await supabaseClient
-      .from('master_stock')
-      .delete()
-      .neq('barcode', 'placeholder_for_clear_all_row_xyz');
-    if (deleteStockError) throw new Error("ลบข้อมูลสินค้าเก่าล้มเหลว: " + deleteStockError.message);
-
-    // 3. ลบข้อมูลเก่าในตาราง users บน Supabase
-    const { error: deleteUsersError } = await supabaseClient
-      .from('users')
-      .delete()
-      .neq('name', 'placeholder_for_clear_all_row_xyz');
-    if (deleteUsersError) throw new Error("ลบข้อมูลผู้ใช้เก่าล้มเหลว: " + deleteUsersError.message);
-
-    showDbStatus("ลบข้อมูลเก่าสำเร็จแล้ว กำลังนำเข้าข้อมูลใหม่ไปยัง Supabase...", "warning");
-
-    // 4. นำเข้าข้อมูลสินค้าหลัก (Master Stock) - ใช้การแบ่ง Batch ละ 500 รายการเพื่อไม่ให้เกิด timeout หรือขนาดเกินลิมิต
-    const BATCH_SIZE = 500;
-    for (let i = 0; i < masterStockList.length; i += BATCH_SIZE) {
-      const batch = masterStockList.slice(i, i + BATCH_SIZE);
-      showDbStatus(`กำลังบันทึกข้อมูลสินค้าหลัก (${i} ถึง ${Math.min(i + BATCH_SIZE, masterStockList.length)} จากทั้งหมด ${masterStockList.length} รายการ)...`, "warning");
-      
-      const { error: insertStockError } = await supabaseClient
-        .from('master_stock')
-        .insert(batch);
-      
-      if (insertStockError) throw new Error("บันทึกข้อมูลสินค้าล้มเหลวในชุดที่ " + (i / BATCH_SIZE + 1) + ": " + insertStockError.message);
-    }
-
-    // 5. นำเข้าข้อมูลพนักงาน (Users)
-    showDbStatus(`กำลังบันทึกข้อมูลผู้ใช้งาน (${usersList.length} รายการ)...`, "warning");
-    const { error: insertUsersError } = await supabaseClient
-      .from('users')
-      .insert(usersList);
-    if (insertUsersError) throw new Error("บันทึกข้อมูลผู้ใช้ล้มเหลว: " + insertUsersError.message);
+    // 2. ส่งข้อมูลไปอัปเดตบน Cloudflare D1 ผ่าน Worker
+    await callCloudflareDb("syncMasterData", {
+      masterStock: masterStockList,
+      users: usersList
+    });
 
     // โหลดรายชื่อสาขาในหน้ารายงานใหม่ (เพราะพนักงานอาจเปลี่ยนไป)
     try {
       dbGetAllBranchNames().then(onBranchNamesLoaded).catch(onBranchNamesFailed);
     } catch(e) { console.warn("Failed to reload branch list", e); }
 
-    showDbStatus("อัปเดตข้อมูลสินค้าและพนักงานจาก Google Sheet สำเร็จเรียบร้อยแล้ว!", "success");
+    showDbStatus("อัปเดตข้อมูลสินค้าและพนักงานจาก Google Sheet ไปยัง Cloudflare สำเร็จเรียบร้อยแล้ว!", "success");
 
   } catch (error) {
     console.error("Sync error:", error);
@@ -1179,16 +1053,11 @@ async function executeClearCountLog() {
   if (syncBtn) syncBtn.disabled = true;
   if (clearBtn) clearBtn.disabled = true;
 
-  showDbStatus("กำลังล้างข้อมูลประวัติการบันทึกนับสต็อกบน Supabase...", "warning");
+  showDbStatus("กำลังล้างข้อมูลประวัติการบันทึกนับสต็อกบน Cloudflare...", "warning");
 
   try {
-    // ลบข้อมูลทั้งหมดในตาราง count_log บน Supabase
-    const { error } = await supabaseClient
-      .from('count_log')
-      .delete()
-      .neq('barcode', 'placeholder_for_clear_all_row_xyz');
-
-    if (error) throw error;
+    // ลบข้อมูลทั้งหมดใน Cloudflare D1 ผ่าน Worker
+    await callCloudflareDb("clearCountLogs", {});
 
     // รีเซ็ตตัวแปรประวัติการดึงข้อมูลรายงานในหน้าเว็บปัจจุบันด้วย
     managerFullSummaryReport = [];
@@ -1205,4 +1074,3 @@ async function executeClearCountLog() {
     if (clearBtn) clearBtn.disabled = false;
   }
 }
-
